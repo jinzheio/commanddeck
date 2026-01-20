@@ -5,6 +5,8 @@ export interface Agent {
   name: string;
   project: string;
   pid: number;
+  startedAt: string;
+  status: 'idle' | 'working' | 'error';
 }
 
 interface AgentStore {

@@ -1,52 +1,61 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  body {
-    @apply bg-rim-bg text-rim-text font-mono antialiased overflow-hidden;
-  }
+@theme {
+  --color-rim-bg: #1a1a1a;
+  --color-rim-panel: #242424;
+  --color-rim-border: #3a3a3a;
+  --color-rim-text: #e0e0e0;
+  --color-rim-muted: #808080;
+  --color-rim-accent: #4a9eff;
+  --color-rim-success: #4ade80;
+  --color-rim-warning: #fbbf24;
+  --color-rim-error: #ef4444;
+  --color-rim-working: #4ade80;
+  --color-rim-idle: #6b7280;
+  --color-rim-pushing: #8b5cf6;
+
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+  --font-sans: Inter, system-ui, sans-serif;
 }
 
-@layer components {
-  /* RimWorld Style Panel */
-  .panel {
-    @apply bg-rim-panel border border-rim-border relative;
-  }
-  
-  .panel-header {
-    @apply bg-rim-border px-3 py-1 text-xs font-bold uppercase tracking-wider text-rim-muted select-none flex items-center justify-between;
-  }
-
-  /* Button Styles */
-  .btn {
-    @apply px-3 py-1.5 bg-rim-border hover:bg-rim-border/80 active:bg-rim-border/60 
-    text-sm font-medium transition-colors duration-100 flex items-center gap-2;
-  }
-  
-  .btn-primary {
-    @apply bg-rim-accent hover:bg-rim-accent/90 text-white;
-  }
-  
-  .btn-danger {
-    @apply bg-rim-error hover:bg-rim-error/90 text-white;
-  }
-
-  .btn-icon {
-    @apply p-1.5;
-  }
+body {
+  @apply bg-rim-bg text-rim-text antialiased overflow-hidden m-0;
+  font-family: var(--font-mono);
 }
 
-/* Custom Scrollbar */
+.panel {
+  @apply bg-rim-panel border border-rim-border relative;
+}
+
+.panel-header {
+  @apply bg-rim-border px-3 py-1 text-xs font-bold uppercase tracking-wider text-rim-muted select-none flex items-center justify-between;
+}
+
+.btn {
+  @apply px-3 py-1.5 bg-rim-border hover:bg-rim-border/80 active:bg-rim-border/60 text-sm font-medium transition-colors duration-100 flex items-center gap-2 cursor-pointer;
+}
+
+.btn-primary {
+  @apply bg-rim-accent hover:bg-rim-accent/90 text-white;
+}
+
+.btn-danger {
+  @apply bg-rim-error hover:bg-rim-error/90 text-white;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-rim-bg;
+  background: var(--color-rim-bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-rim-border hover:bg-rim-muted/50;
+  background: var(--color-rim-border);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-rim-muted);
 }

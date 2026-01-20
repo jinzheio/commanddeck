@@ -9,32 +9,10 @@ const CONFIG_DIR = path.join(os.homedir(), ".commanddeck");
 const CONFIG_PATH = path.join(CONFIG_DIR, "projects.json");
 
 const NAME_POOL = [
-  "Alice",
-  "Bob",
-  "Clara",
-  "Dylan",
-  "Evelyn",
-  "Finn",
-  "Grace",
-  "Henry",
-  "Ivy",
-  "Jack",
-  "Kara",
-  "Leo",
-  "Mia",
-  "Nora",
-  "Owen",
-  "Pia",
-  "Quinn",
-  "Rui",
-  "Sara",
-  "Theo",
-  "Una",
-  "Vera",
-  "Will",
-  "Xena",
-  "Yuri",
-  "Zoe",
+  "Alice", "Bob", "Clara", "Dylan", "Evelyn", "Finn", "Grace", "Henry",
+  "Ivy", "Jack", "Kara", "Leo", "Mia", "Nora", "Owen", "Pia",
+  "Quinn", "Rui", "Sara", "Theo", "Una", "Vera", "Will", "Xena",
+  "Yuri", "Zoe"
 ];
 
 let mainWindow;
@@ -122,6 +100,7 @@ function listAgents() {
     project: agent.project,
     pid: agent.process.pid,
     startedAt: agent.startedAt,
+    status: agent.status,
   }));
 }
 
@@ -198,12 +177,9 @@ function startAgent({ projectName, hubUrl }) {
     };
 
     const id = `${projectName}:${agentName}`;
-    
-    // 为每个 agent 生成一个唯一的 session UUID 用于维持对话上下文
     const sessionId = require("crypto").randomUUID();
     
-    // Claude Code 交互模式不支持编程式 Enter 提交
-    // 使用 bash 包装运行 claude，每次收到消息时用 -p 模式执行
+    // Cloud Code setup
     const ptyProcess = pty.spawn("bash", [], {
       name: "xterm-color",
       cols: 80,
@@ -216,9 +192,7 @@ function startAgent({ projectName, hubUrl }) {
     console.log(`[Agent] Session ID: ${sessionId}`);
 
     ptyProcess.onData((data) => {
-      const line = data.toString();
-      console.log(`[Agent ${id}] PTY output:`, line);
-      appendAgentLog(id, line);
+      handleAgentOutput(id, data);
     });
 
     ptyProcess.onExit(({ exitCode, signal }) => {
@@ -234,8 +208,9 @@ function startAgent({ projectName, hubUrl }) {
       name: agentName,
       project: projectName,
       process: ptyProcess,
-      sessionId: sessionId,  // 存储 session ID
+      sessionId: sessionId,
       startedAt: new Date().toISOString(),
+      status: 'idle',
     };
     agents.set(id, record);
     agentLogs.set(id, []);
@@ -259,7 +234,6 @@ function stopAgent({ agentId }) {
   try {
     console.log(`[Agent] Stopping agent: ${agentId}`);
     agent.process.kill();
-    // cleanup会在 onExit 中自动处理
     return { ok: true };
   } catch (error) {
     console.error(`[Agent] Failed to stop ${agentId}:`, error);
@@ -275,29 +249,85 @@ function sendMessage({ agentId, text }) {
   if (!text.trim()) {
     return { ok: false, reason: "empty" };
   }
-  try {
-    // 使用 claude -p (print mode) 执行单次命令
-    // --allowed-tools: 允许 Write 和 Bash 工具（Bash 用于 git 操作）
-    // --permission-mode acceptEdits: 自动批准所有编辑操作
-    // --session-id: 使用固定 UUID 维持对话上下文
-    // 使用默认 text 输出格式（简洁，节省存储）
-    // 通过 stdin 管道提供 prompt
-    const escapedText = text.trim().replace(/'/g, "'\\''");
-    const command = `echo '${escapedText}' | claude -p \\
-      --allowed-tools "Write,Bash" \\
-      --permission-mode acceptEdits \\
-      --session-id ${agent.sessionId}\n`;
-    
-    agent.process.write(command);
-    console.log(`[Message] Sent to agent ${agentId} (session: ${agent.sessionId.substring(0, 8)}...)`);
-  } catch (error) {
-    return { ok: false, reason: "write_failed", error: error.message };
+  
+  if (!agent.commandQueue) {
+    agent.commandQueue = [];
+    agent.isProcessing = false;
   }
-  return { ok: true };
+  
+  agent.commandQueue.push(text.trim());
+  console.log(`[Message] Queued for ${agentId}: "${text.trim().substring(0, 50)}..." (queue size: ${agent.commandQueue.length})`);
+  
+  processCommandQueue(agentId);
+  
+  return { ok: true, queued: true };
 }
 
+function processCommandQueue(agentId) {
+  const agent = agents.get(agentId);
+  if (!agent || agent.isProcessing || !agent.commandQueue || agent.commandQueue.length === 0) {
+    return;
+  }
+  
+  agent.isProcessing = true;
+  agent.status = 'working';
+  broadcastAgents();
+  
+  const text = agent.commandQueue.shift();
+  
+  if (agent.messageCount === undefined) {
+    agent.messageCount = 0;
+  }
+  agent.messageCount++;
+  
+  try {
+    const escapedText = text.replace(/'/g, "'\\''");
+    
+    let command;
+    if (agent.messageCount === 1) {
+      command = `echo '${escapedText}' | claude -p --allowed-tools "Write,Bash" --permission-mode acceptEdits --session-id ${agent.sessionId}\n`;
+      console.log(`[Message] First message to ${agentId}, creating session ${agent.sessionId.substring(0, 8)}...`);
+    } else {
+      command = `echo '${escapedText}' | claude -p --allowed-tools "Write,Bash" --permission-mode acceptEdits --resume ${agent.sessionId}\n`;
+      console.log(`[Message] Resuming session ${agent.sessionId.substring(0, 8)} for ${agentId} (message #${agent.messageCount})`);
+    }
+    
+    agent.process.write(command);
+    
+  } catch (error) {
+    agent.isProcessing = false;
+    agent.status = 'error';
+    broadcastAgents();
+    console.error(`[Message] Failed to send to ${agentId}:`, error);
+  }
+}
 
-
+function handleAgentOutput(agentId, data) {
+  const agent = agents.get(agentId);
+  if (!agent) return;
+  
+  const line = data.toString();
+  appendAgentLog(agentId, line);
+  
+  if (line.toLowerCase().includes('error:') || line.toLowerCase().includes('failed:')) {
+    agent.status = 'error';
+    broadcastAgents();
+  }
+  
+  if (agent.isProcessing && line.includes('bash-') && line.includes('$')) {
+    agent.isProcessing = false;
+    
+    if (agent.status !== 'error') {
+      agent.status = 'idle';
+    }
+    
+    if (agent.commandQueue && agent.commandQueue.length > 0) {
+       setTimeout(() => processCommandQueue(agentId), 200);
+    } else {
+       broadcastAgents();
+    }
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -311,7 +341,6 @@ function createWindow() {
     },
   });
 
-  // Load Vite dev server URL in development, or static file in production
   if (process.env.npm_lifecycle_event === 'dev:electron' || process.argv.includes('--dev')) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
