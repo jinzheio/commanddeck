@@ -38,6 +38,8 @@ CommandDeck 读取全局配置：`~/.commanddeck/projects.json`。
 2. 填写 Hub URL（默认 `ws://127.0.0.1:8787/stream`）。
 3. 点击 Connect，右侧事件面板会显示该项目的事件流。
 
+说明：Connect 只影响“事件流展示”。启动/发送消息给 Agent 不依赖此连接。
+
 ## 4. 启动 Agent
 
 1. 选择项目。

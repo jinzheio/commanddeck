@@ -39,6 +39,7 @@ const NAME_POOL = [
 
 let mainWindow;
 const agents = new Map();
+const agentLogs = new Map();
 
 function ensureConfigDir() {
   if (!fs.existsSync(CONFIG_DIR)) {
@@ -124,6 +125,18 @@ function listAgents() {
   }));
 }
 
+function appendAgentLog(id, line) {
+  const existing = agentLogs.get(id) || [];
+  existing.push(line);
+  if (existing.length > 200) {
+    existing.shift();
+  }
+  agentLogs.set(id, existing);
+  if (mainWindow) {
+    mainWindow.webContents.send("agent-log", { id, line });
+  }
+}
+
 function broadcastAgents() {
   if (mainWindow) {
     mainWindow.webContents.send("agents-changed", listAgents());
@@ -154,6 +167,16 @@ function nextAgentName(projectName) {
   return `Agent${index}`;
 }
 
+function buildAgentCommand() {
+  if (process.platform === "win32") {
+    return { command: "cmd", args: ["/c", "claude"] };
+  }
+  if (process.platform === "darwin" || process.platform === "linux") {
+    return { command: "script", args: ["-q", "/dev/null", "claude"] };
+  }
+  return { command: "claude", args: [] };
+}
+
 function startAgent({ projectName, hubUrl }) {
   const projectPath = path.join(PROJECTS_DIR, projectName);
   if (!fs.existsSync(projectPath)) {
@@ -169,47 +192,73 @@ function startAgent({ projectName, hubUrl }) {
   };
 
   return new Promise((resolve) => {
-    const child = spawn("claude", [], {
-      cwd: projectPath,
-      env,
-      stdio: "pipe",
-    });
-
-    const id = `${projectName}:${agentName}`;
     let resolved = false;
-
     const finalize = (result) => {
       if (resolved) return;
       resolved = true;
       resolve(result);
     };
 
-    child.once("spawn", () => {
-      const record = {
-        id,
-        name: agentName,
-        project: projectName,
-        process: child,
-        startedAt: new Date().toISOString(),
-      };
-      agents.set(id, record);
-      broadcastAgents();
-      finalize({ ok: true, agent: { id, name: agentName, project: projectName } });
-    });
+    const id = `${projectName}:${agentName}`;
 
-    child.once("error", (error) => {
-      finalize({ ok: false, reason: "spawn_failed", error: error.message });
-    });
+    const attachProcess = (child) => {
+      child.stdout.on("data", (data) => {
+        appendAgentLog(id, data.toString());
+      });
+      child.stderr.on("data", (data) => {
+        appendAgentLog(id, data.toString());
+      });
 
-    child.on("exit", () => {
-      agents.delete(id);
-      broadcastAgents();
-    });
+      child.once("spawn", () => {
+        const record = {
+          id,
+          name: agentName,
+          project: projectName,
+          process: child,
+          startedAt: new Date().toISOString(),
+        };
+        agents.set(id, record);
+        agentLogs.set(id, []);
+        broadcastAgents();
+        finalize({
+          ok: true,
+          agent: { id, name: agentName, project: projectName },
+        });
+      });
 
-    child.on("error", () => {
-      agents.delete(id);
-      broadcastAgents();
-    });
+      child.on("exit", () => {
+        agents.delete(id);
+        agentLogs.delete(id);
+        broadcastAgents();
+      });
+
+      child.on("error", () => {
+        agents.delete(id);
+        agentLogs.delete(id);
+        broadcastAgents();
+      });
+    };
+
+    const spawnWith = (command, args) => {
+      const child = spawn(command, args, {
+        cwd: projectPath,
+        env,
+        stdio: "pipe",
+      });
+
+      attachProcess(child);
+
+      child.once("error", (error) => {
+        if (command === "script" && error.code === "ENOENT") {
+          spawnWith("claude", []);
+          return;
+        }
+        finalize({ ok: false, reason: "spawn_failed", error: error.message });
+      });
+    };
+
+    const { command, args } = buildAgentCommand();
+    spawnWith(command, args);
   });
 }
 
@@ -221,7 +270,11 @@ function sendMessage({ agentId, text }) {
   if (!text.trim()) {
     return { ok: false, reason: "empty" };
   }
-  agent.process.stdin.write(`${text.trim()}\n`);
+  try {
+    agent.process.stdin.write(`${text.trim()}\n`);
+  } catch (error) {
+    return { ok: false, reason: "write_failed", error: error.message };
+  }
   return { ok: true };
 }
 
@@ -263,5 +316,6 @@ ipcMain.handle("projects:remove", (_event, name) => removeProject(name));
 ipcMain.handle("agents:list", () => listAgents());
 ipcMain.handle("agents:start", (_event, payload) => startAgent(payload));
 ipcMain.handle("agents:message", (_event, payload) => sendMessage(payload));
+ipcMain.handle("agents:logs", (_event, agentId) => agentLogs.get(agentId) || []);
 
 ipcMain.on("projects:changed", () => broadcastProjects());

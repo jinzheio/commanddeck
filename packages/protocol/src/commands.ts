@@ -28,12 +28,14 @@ export const SubscribeSchema = z.object({
 })
 
 // WebSocket 消息类型
+export const CommandMessageSchema = z.object({
+  type: z.literal('command'),
+  command: CommandSchema,
+})
+
 export const WsMessageSchema = z.discriminatedUnion('type', [
   SubscribeSchema,
-  z.object({
-    type: z.literal('command'),
-    ...CommandSchema.shape,
-  }),
+  CommandMessageSchema,
 ])
 
 // 类型导出

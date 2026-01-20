@@ -185,6 +185,7 @@
         <label for="agent-message">Message</label>
         <input id="agent-message" placeholder="Type a message and press Send" />
         <button id="agent-send">Send</button>
+        <div class="status" id="agent-status"></div>
       </section>
 
       <section class="events" id="events"></section>
@@ -203,6 +204,7 @@
       const agentSelect = document.getElementById("agent-select");
       const agentMessage = document.getElementById("agent-message");
       const agentSendButton = document.getElementById("agent-send");
+      const agentStatus = document.getElementById("agent-status");
       const eventsEl = document.getElementById("events");
 
       let socket;
@@ -232,6 +234,7 @@
             localStorage.setItem("commanddeck.project", selectedProject);
             renderProjects();
             renderAgents();
+            connect();
           });
           projectListEl.appendChild(button);
         });
@@ -382,7 +385,7 @@
           hubUrl,
         });
         if (!result.ok) {
-          setStatus("Failed to start agent");
+          setStatus(`Failed to start agent: ${result.reason || "unknown"}`);
         }
         await refreshAgents();
       });
@@ -391,7 +394,12 @@
         const agentId = agentSelect.value;
         const text = agentMessage.value.trim();
         if (!agentId || !text) return;
-        await api.sendMessage({ agentId, text });
+        const result = await api.sendMessage({ agentId, text });
+        if (result.ok) {
+          agentStatus.textContent = "Message sent";
+        } else {
+          agentStatus.textContent = `Send failed: ${result.reason || "unknown"}`;
+        }
         agentMessage.value = "";
       });
 
