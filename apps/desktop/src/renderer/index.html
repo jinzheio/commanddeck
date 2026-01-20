@@ -249,7 +249,19 @@
             localStorage.setItem("commanddeck.project", selectedProject);
             renderProjects();
             renderAgents();
-            connect();
+            
+            // 如果已经连接，直接切换订阅，而不是重新连接
+            if (isConnected && socket) {
+              socket.send(
+                JSON.stringify({
+                  type: "subscribe",
+                  project_id: selectedProject,
+                  since_event_id: lastEventId,
+                })
+              );
+              // 清空当前显示的事件
+              eventsEl.innerHTML = "";
+            }
           });
           projectListEl.appendChild(button);
         });
@@ -271,6 +283,19 @@
           const button = document.createElement("button");
           button.textContent = `${agent.name} (pid ${agent.pid})`;
           agentListEl.appendChild(button);
+          
+          // Add stop button
+          const stopBtn = document.createElement("button");
+          stopBtn.textContent = "Stop";
+          stopBtn.style.marginTop = "4px";
+          stopBtn.style.background = "#d93838";
+          stopBtn.addEventListener("click", async () => {
+            const result = await window.commanddeck.stopAgent({ agentId: agent.id });
+            if (!result.ok) {
+              console.error("Failed to stop agent:", result.reason);
+            }
+          });
+          agentListEl.appendChild(stopBtn);
 
           const option = document.createElement("option");
           option.value = agent.id;
@@ -329,12 +354,14 @@
           socket.close();
         }
 
+        console.log("[WS] Connecting to:", hubUrl);
         socket = new WebSocket(hubUrl);
         connectButton.disabled = false;
         setStatus("Connecting...");
         connectButton.textContent = "Connecting...";
 
         socket.addEventListener("open", () => {
+          console.log("[WS] Connected!");
           setStatus(`Connected to ${hubUrl}`);
           isConnected = true;
           connectButton.textContent = "Disconnect";
@@ -348,6 +375,7 @@
         });
 
         socket.addEventListener("message", (event) => {
+          console.log("[WS] Message received:", event.data.substring(0, 100));
           try {
             handleMessage(JSON.parse(event.data));
           } catch (error) {
@@ -356,12 +384,14 @@
         });
 
         socket.addEventListener("close", () => {
+          console.log("[WS] Connection closed");
           setStatus("Disconnected");
           isConnected = false;
           connectButton.textContent = "Connect";
         });
 
-        socket.addEventListener("error", () => {
+        socket.addEventListener("error", (error) => {
+          console.error("[WS] Connection error:", error);
           setStatus("Connection error");
           isConnected = false;
           connectButton.textContent = "Connect";

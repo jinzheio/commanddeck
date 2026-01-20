@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "electron .",
     "build": "echo 'No build step for MVP'",
-    "typecheck": "echo 'No typecheck for MVP'"
+    "typecheck": "echo 'No typecheck for MVP'",
+    "postinstall": "electron-rebuild -f -w node-pty"
+  },
+  "dependencies": {
+    "node-pty": "^1.0.0"
   },
   "devDependencies": {
-    "electron": "^31.0.2"
+    "electron": "^31.0.2",
+    "electron-rebuild": "^3.2.9"
   }
 }

@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("commanddeck", {
   removeProject: (name) => ipcRenderer.invoke("projects:remove", name),
   getAgents: () => ipcRenderer.invoke("agents:list"),
   startAgent: (payload) => ipcRenderer.invoke("agents:start", payload),
+  stopAgent: (payload) => ipcRenderer.invoke("agents:stop", payload),
   sendMessage: (payload) => ipcRenderer.invoke("agents:message", payload),
   onAgentsChanged: (callback) =>
     ipcRenderer.on("agents-changed", (_event, data) => callback(data)),

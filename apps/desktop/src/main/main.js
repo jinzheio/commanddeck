@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
-const { spawn } = require("child_process");
+const pty = require("node-pty");
 
 const PROJECTS_DIR = path.join(os.homedir(), "Projects");
 const CONFIG_DIR = path.join(os.homedir(), ".commanddeck");
@@ -173,18 +173,10 @@ function nextAgentName(projectName) {
   return `Agent${index}`;
 }
 
-function buildAgentCommand() {
-  if (process.platform === "win32") {
-    return { command: "cmd", args: ["/c", "claude"] };
-  }
-  if (process.platform === "darwin" || process.platform === "linux") {
-    return { command: "script", args: ["-q", "/dev/null", "claude"] };
-  }
-  return { command: "claude", args: [] };
-}
-
 function startAgent({ projectName, hubUrl }) {
   const projectPath = path.join(PROJECTS_DIR, projectName);
+  console.log(`[Agent] Starting agent for project: ${projectName}`);
+  
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "missing_project", path: projectPath };
   }
@@ -206,78 +198,73 @@ function startAgent({ projectName, hubUrl }) {
     };
 
     const id = `${projectName}:${agentName}`;
+    
+    // 为每个 agent 生成一个唯一的 session UUID 用于维持对话上下文
+    const sessionId = require("crypto").randomUUID();
+    
+    // Claude Code 交互模式不支持编程式 Enter 提交
+    // 使用 bash 包装运行 claude，每次收到消息时用 -p 模式执行
+    const ptyProcess = pty.spawn("bash", [], {
+      name: "xterm-color",
+      cols: 80,
+      rows: 30,
+      cwd: projectPath,
+      env: env,
+    });
 
-    const attachProcess = (child) => {
-      child.stdout.on("data", (data) => {
-        appendAgentLog(id, data.toString());
-      });
-      child.stderr.on("data", (data) => {
-        appendAgentLog(id, data.toString());
-      });
+    console.log(`[Agent] PTY spawned with PID: ${ptyProcess.pid}`);
+    console.log(`[Agent] Session ID: ${sessionId}`);
 
-      child.once("spawn", () => {
-        const record = {
-          id,
-          name: agentName,
-          project: projectName,
-          process: child,
-          startedAt: new Date().toISOString(),
-        };
-        agents.set(id, record);
-        agentLogs.set(id, []);
-        broadcastAgents();
-        finalize({
-          ok: true,
-          agent: { id, name: agentName, project: projectName },
-        });
-      });
+    ptyProcess.onData((data) => {
+      const line = data.toString();
+      console.log(`[Agent ${id}] PTY output:`, line);
+      appendAgentLog(id, line);
+    });
 
-      child.on("exit", () => {
-        agents.delete(id);
-        agentLogs.delete(id);
-        broadcastAgents();
-        notifyAgentExit(id, { reason: "exit" });
-      });
+    ptyProcess.onExit(({ exitCode, signal }) => {
+      console.log(`[Agent ${id}] Exit: code=${exitCode}, signal=${signal}`);
+      agents.delete(id);
+      agentLogs.delete(id);
+      broadcastAgents();
+      notifyAgentExit(id, { reason: "exit" });
+    });
 
-      child.on("error", (error) => {
-        agents.delete(id);
-        agentLogs.delete(id);
-        broadcastAgents();
-        notifyAgentExit(id, { reason: "error", error: error.message });
-      });
+    const record = {
+      id,
+      name: agentName,
+      project: projectName,
+      process: ptyProcess,
+      sessionId: sessionId,  // 存储 session ID
+      startedAt: new Date().toISOString(),
     };
-
-    const spawnWith = (command, args) => {
-      const child = spawn(command, args, {
-        cwd: projectPath,
-        env,
-        stdio: "pipe",
+    agents.set(id, record);
+    agentLogs.set(id, []);
+    broadcastAgents();
+    
+    setTimeout(() => {
+      finalize({
+        ok: true,
+        agent: { id, name: agentName, project: projectName },
       });
-
-      attachProcess(child);
-
-      child.once("error", (error) => {
-        if (command === "script" && error.code === "ENOENT") {
-          spawnWith("claude", []);
-          return;
-        }
-        finalize({ ok: false, reason: "spawn_failed", error: error.message });
-      });
-
-      child.once("exit", (code, signal) => {
-        if (!resolved) {
-          finalize({
-            ok: false,
-            reason: "exit_early",
-            error: `exit ${code ?? "null"} ${signal ?? ""}`.trim(),
-          });
-        }
-      });
-    };
-
-    const { command, args } = buildAgentCommand();
-    spawnWith(command, args);
+    }, 500);
   });
+}
+
+function stopAgent({ agentId }) {
+  const agent = agents.get(agentId);
+  if (!agent) {
+    return { ok: false, reason: "not_found" };
+  }
+  
+  try {
+    console.log(`[Agent] Stopping agent: ${agentId}`);
+    agent.process.kill();
+    // cleanup会在 onExit 中自动处理
+    return { ok: true };
+  } catch (error) {
+    console.error(`[Agent] Failed to stop ${agentId}:`, error);
+    return { ok: false, reason: "kill_failed", error: error.message };
+  }
 }
 
 function sendMessage({ agentId, text }) {
@@ -289,12 +276,28 @@ function sendMessage({ agentId, text }) {
     return { ok: false, reason: "empty" };
   }
   try {
-    agent.process.stdin.write(`${text.trim()}\n`);
+    // 使用 claude -p (print mode) 执行单次命令
+    // --allowed-tools: 允许 Write 和 Bash 工具（Bash 用于 git 操作）
+    // --permission-mode acceptEdits: 自动批准所有编辑操作
+    // --session-id: 使用固定 UUID 维持对话上下文
+    // 使用默认 text 输出格式（简洁，节省存储）
+    // 通过 stdin 管道提供 prompt
+    const escapedText = text.trim().replace(/'/g, "'\\''");
+    const command = `echo '${escapedText}' | claude -p \\
+      --allowed-tools "Write,Bash" \\
+      --permission-mode acceptEdits \\
+      --session-id ${agent.sessionId}\n`;
+    
+    agent.process.write(command);
+    console.log(`[Message] Sent to agent ${agentId} (session: ${agent.sessionId.substring(0, 8)}...)`);
   } catch (error) {
     return { ok: false, reason: "write_failed", error: error.message };
   }
   return { ok: true };
 }
+
+
+
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -333,6 +336,7 @@ ipcMain.handle("projects:remove", (_event, name) => removeProject(name));
 
 ipcMain.handle("agents:list", () => listAgents());
 ipcMain.handle("agents:start", (_event, payload) => startAgent(payload));
+ipcMain.handle("agents:stop", (_event, payload) => stopAgent(payload));
 ipcMain.handle("agents:message", (_event, payload) => sendMessage(payload));
 ipcMain.handle("agents:logs", (_event, agentId) => agentLogs.get(agentId) || []);
 
