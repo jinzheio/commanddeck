@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentMeta - Claude Code Hook Script
+# CommandDeck - Claude Code Hook Script
 # 用于将 Claude Code 生命周期事件上报到 Hub
 
 HUB_URL="${AGENT_CONSOLE_URL:-http://127.0.0.1:8787}"

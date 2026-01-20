@@ -18,7 +18,7 @@ Use these commands as documented in `docs/DEVELOPMENT.md`:
 
 ## Coding Style & Naming Conventions
 - TypeScript is the primary language; keep strict typing enabled.
-- Formatting and linting use ESLint + Prettier; run `pnpm format` before commits.
+- Formatting uses Prettier; run `pnpm format` before commits.
 - Use lower-case file names for modules (e.g., `events.ts`, `commands.ts`).
 
 ## Testing Guidelines

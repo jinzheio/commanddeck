@@ -1,11 +1,12 @@
 {
-	"name": "@agentmeta/protocol",
+	"name": "@commanddeck/protocol",
 	"version": "0.1.0",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"scripts": {
 		"build": "tsc",
-		"dev": "tsc --watch"
+		"dev": "tsc --watch",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"zod": "^3.23.0"

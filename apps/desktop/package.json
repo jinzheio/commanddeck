@@ -1,0 +1,14 @@
+{
+  "name": "desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/main/main.js",
+  "scripts": {
+    "dev": "electron .",
+    "build": "echo 'No build step for MVP'",
+    "typecheck": "echo 'No typecheck for MVP'"
+  },
+  "devDependencies": {
+    "electron": "^31.0.2"
+  }
+}

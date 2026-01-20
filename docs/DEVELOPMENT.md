@@ -157,5 +157,5 @@ DEBUG=commanddeck:* pnpm --filter hub dev
 ## 代码规范
 
 - TypeScript strict mode
-- ESLint + Prettier
-- 提交前运行 `pnpm typecheck && pnpm lint`
+- Prettier 代码格式化
+- 提交前运行 `pnpm typecheck && pnpm format`
