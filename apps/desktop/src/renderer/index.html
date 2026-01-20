@@ -24,15 +24,28 @@
         padding: 24px;
         border-right: 1px solid #202030;
         background: #0f1018;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
       }
       .content {
         flex: 1;
         padding: 24px 32px;
         overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
       }
       h1 {
-        margin: 0 0 12px;
+        margin: 0 0 4px;
         font-size: 24px;
+      }
+      h2 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #8c92b8;
       }
       label {
         display: block;
@@ -43,17 +56,19 @@
         margin-bottom: 6px;
       }
       input,
+      select,
       button {
         font-size: 14px;
       }
-      input {
+      input,
+      select {
         width: 100%;
         padding: 10px 12px;
         background: #171a27;
         border: 1px solid #2b314a;
         color: #e7e8f2;
         border-radius: 8px;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
       }
       button {
         width: 100%;
@@ -65,14 +80,35 @@
         font-weight: 600;
         cursor: pointer;
       }
+      button.secondary {
+        background: #2b314a;
+      }
       button:disabled {
         background: #3b3f5c;
         cursor: not-allowed;
       }
       .status {
-        margin-top: 16px;
         font-size: 13px;
         color: #8c92b8;
+      }
+      .list {
+        display: grid;
+        gap: 8px;
+      }
+      .list button {
+        text-align: left;
+        background: #171a27;
+        border: 1px solid #2b314a;
+        font-weight: 500;
+      }
+      .list button.active {
+        background: #2b314a;
+      }
+      .panel {
+        padding: 16px;
+        background: #121522;
+        border: 1px solid #232842;
+        border-radius: 12px;
       }
       .events {
         display: grid;
@@ -114,34 +150,117 @@
   </head>
   <body>
     <aside class="sidebar">
-      <h1>CommandDeck</h1>
-      <label for="project">Project ID</label>
-      <input id="project" placeholder="default" />
-      <label for="hub">Hub URL</label>
-      <input id="hub" placeholder="ws://127.0.0.1:8787/stream" />
-      <button id="connect">Connect</button>
-      <div class="status" id="status">Disconnected</div>
+      <div>
+        <h1>CommandDeck</h1>
+        <div class="status" id="status">Disconnected</div>
+      </div>
+
+      <div>
+        <h2>Projects</h2>
+        <div class="list" id="project-list"></div>
+        <label for="project-name">Add Project</label>
+        <input id="project-name" placeholder="e.g. mpwriter" />
+        <button id="project-add" class="secondary">Add Project</button>
+      </div>
+
+      <div>
+        <h2>Hub</h2>
+        <label for="hub">Hub URL</label>
+        <input id="hub" placeholder="ws://127.0.0.1:8787/stream" />
+        <button id="connect">Connect</button>
+      </div>
+
+      <div>
+        <h2>Agents</h2>
+        <button id="agent-start">Start Agent</button>
+        <div class="list" id="agent-list"></div>
+      </div>
     </aside>
+
     <main class="content">
-      <div class="events" id="events"></div>
+      <section class="panel">
+        <h2>Message Agent</h2>
+        <label for="agent-select">Running Agent</label>
+        <select id="agent-select"></select>
+        <label for="agent-message">Message</label>
+        <input id="agent-message" placeholder="Type a message and press Send" />
+        <button id="agent-send">Send</button>
+      </section>
+
+      <section class="events" id="events"></section>
     </main>
+
     <script>
-      const projectInput = document.getElementById("project");
+      const api = window.commanddeck;
+      const projectListEl = document.getElementById("project-list");
+      const projectNameInput = document.getElementById("project-name");
+      const projectAddButton = document.getElementById("project-add");
       const hubInput = document.getElementById("hub");
       const connectButton = document.getElementById("connect");
       const statusEl = document.getElementById("status");
+      const agentStartButton = document.getElementById("agent-start");
+      const agentListEl = document.getElementById("agent-list");
+      const agentSelect = document.getElementById("agent-select");
+      const agentMessage = document.getElementById("agent-message");
+      const agentSendButton = document.getElementById("agent-send");
       const eventsEl = document.getElementById("events");
 
-      projectInput.value = localStorage.getItem("commanddeck.project") || "default";
+      let socket;
+      let lastEventId = 0;
+      let projects = [];
+      let agents = [];
+      let selectedProject = localStorage.getItem("commanddeck.project") || "";
+
       hubInput.value =
         localStorage.getItem("commanddeck.hub") ||
         "ws://127.0.0.1:8787/stream";
 
-      let socket;
-      let lastEventId = 0;
-
       function setStatus(text) {
         statusEl.textContent = text;
+      }
+
+      function renderProjects() {
+        projectListEl.innerHTML = "";
+        projects.forEach((project) => {
+          const button = document.createElement("button");
+          button.textContent = project.name;
+          if (project.name === selectedProject) {
+            button.classList.add("active");
+          }
+          button.addEventListener("click", () => {
+            selectedProject = project.name;
+            localStorage.setItem("commanddeck.project", selectedProject);
+            renderProjects();
+            renderAgents();
+          });
+          projectListEl.appendChild(button);
+        });
+
+        if (!selectedProject && projects.length > 0) {
+          selectedProject = projects[0].name;
+          localStorage.setItem("commanddeck.project", selectedProject);
+        }
+      }
+
+      function renderAgents() {
+        const filtered = agents.filter(
+          (agent) => agent.project === selectedProject
+        );
+        agentListEl.innerHTML = "";
+        agentSelect.innerHTML = "";
+
+        filtered.forEach((agent) => {
+          const button = document.createElement("button");
+          button.textContent = `${agent.name} (pid ${agent.pid})`;
+          agentListEl.appendChild(button);
+
+          const option = document.createElement("option");
+          option.value = agent.id;
+          option.textContent = agent.name;
+          agentSelect.appendChild(option);
+        });
+
+        agentSendButton.disabled = filtered.length === 0;
       }
 
       function appendEvent(event) {
@@ -178,9 +297,11 @@
       }
 
       function connect() {
-        const projectId = projectInput.value.trim() || "default";
+        if (!selectedProject) {
+          setStatus("Select a project first");
+          return;
+        }
         const hubUrl = hubInput.value.trim();
-        localStorage.setItem("commanddeck.project", projectId);
         localStorage.setItem("commanddeck.hub", hubUrl);
 
         if (socket) {
@@ -196,7 +317,7 @@
           socket.send(
             JSON.stringify({
               type: "subscribe",
-              project_id: projectId,
+              project_id: selectedProject,
               since_event_id: lastEventId,
             })
           );
@@ -221,7 +342,71 @@
         });
       }
 
+      async function refreshProjects() {
+        projects = await api.getProjects();
+        renderProjects();
+        renderAgents();
+      }
+
+      async function refreshAgents() {
+        agents = await api.getAgents();
+        renderAgents();
+      }
+
+      projectAddButton.addEventListener("click", async () => {
+        const name = projectNameInput.value.trim();
+        if (!name) return;
+        const result = await api.addProject(name);
+        if (!result.ok && result.reason === "missing") {
+          const confirmed = window.confirm(
+            `Project folder not found. Create ${result.path}?`
+          );
+          if (confirmed) {
+            await api.createProject(name);
+          }
+        }
+        projectNameInput.value = "";
+        await refreshProjects();
+      });
+
       connectButton.addEventListener("click", connect);
+
+      agentStartButton.addEventListener("click", async () => {
+        if (!selectedProject) {
+          setStatus("Select a project first");
+          return;
+        }
+        const hubUrl = hubInput.value.trim();
+        const result = await api.startAgent({
+          projectName: selectedProject,
+          hubUrl,
+        });
+        if (!result.ok) {
+          setStatus("Failed to start agent");
+        }
+        await refreshAgents();
+      });
+
+      agentSendButton.addEventListener("click", async () => {
+        const agentId = agentSelect.value;
+        const text = agentMessage.value.trim();
+        if (!agentId || !text) return;
+        await api.sendMessage({ agentId, text });
+        agentMessage.value = "";
+      });
+
+      api.onAgentsChanged((nextAgents) => {
+        agents = nextAgents;
+        renderAgents();
+      });
+
+      api.onProjectsChanged((nextProjects) => {
+        projects = nextProjects;
+        renderProjects();
+      });
+
+      refreshProjects();
+      refreshAgents();
     </script>
   </body>
 </html>
