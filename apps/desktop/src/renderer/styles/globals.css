@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-rim-bg text-rim-text font-mono antialiased overflow-hidden;
+  }
+}
+
+@layer components {
+  /* RimWorld Style Panel */
+  .panel {
+    @apply bg-rim-panel border border-rim-border relative;
+  }
+  
+  .panel-header {
+    @apply bg-rim-border px-3 py-1 text-xs font-bold uppercase tracking-wider text-rim-muted select-none flex items-center justify-between;
+  }
+
+  /* Button Styles */
+  .btn {
+    @apply px-3 py-1.5 bg-rim-border hover:bg-rim-border/80 active:bg-rim-border/60 
+    text-sm font-medium transition-colors duration-100 flex items-center gap-2;
+  }
+  
+  .btn-primary {
+    @apply bg-rim-accent hover:bg-rim-accent/90 text-white;
+  }
+  
+  .btn-danger {
+    @apply bg-rim-error hover:bg-rim-error/90 text-white;
+  }
+
+  .btn-icon {
+    @apply p-1.5;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-rim-bg;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-rim-border hover:bg-rim-muted/50;
+}

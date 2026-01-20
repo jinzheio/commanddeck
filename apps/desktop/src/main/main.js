@@ -311,7 +311,13 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+  // Load Vite dev server URL in development, or static file in production
+  if (process.env.npm_lifecycle_event === 'dev:electron' || process.argv.includes('--dev')) {
+    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+  }
 }
 
 app.whenReady().then(() => {
