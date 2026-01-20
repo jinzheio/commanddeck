@@ -101,11 +101,18 @@ function listAgents() {
     pid: agent.process.pid,
     startedAt: agent.startedAt,
     status: agent.status,
+    deskIndex: agent.deskIndex,
   }));
 }
 
 function appendAgentLog(id, line) {
   const existing = agentLogs.get(id) || [];
+  
+  // Deduplication: skip if last line is identical
+  if (existing.length > 0 && existing[existing.length - 1] === line) {
+    return;
+  }
+  
   existing.push(line);
   if (existing.length > 200) {
     existing.shift();
@@ -140,11 +147,17 @@ function nextAgentName(projectName) {
       .filter((agent) => agent.project === projectName)
       .map((agent) => agent.name)
   );
-  for (const name of NAME_POOL) {
-    if (!used.has(name)) {
-      return name;
-    }
+  
+  // Random name selection
+  const availableNames = NAME_POOL.filter(name => !used.has(name));
+  
+  if (availableNames.length > 0) {
+    // Pick random name from available
+    const randomIndex = Math.floor(Math.random() * availableNames.length);
+    return availableNames[randomIndex];
   }
+  
+  // If all names used, add number suffix
   let index = 1;
   while (used.has(`Agent${index}`)) {
     index += 1;
@@ -152,9 +165,9 @@ function nextAgentName(projectName) {
   return `Agent${index}`;
 }
 
-function startAgent({ projectName, hubUrl }) {
+function startAgent({ projectName, hubUrl, deskIndex }) {
   const projectPath = path.join(PROJECTS_DIR, projectName);
-  console.log(`[Agent] Starting agent for project: ${projectName}`);
+  console.log(`[Agent] Starting agent for project: ${projectName} at desk ${deskIndex}`);
   
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "missing_project", path: projectPath };
@@ -211,6 +224,7 @@ function startAgent({ projectName, hubUrl }) {
       sessionId: sessionId,
       startedAt: new Date().toISOString(),
       status: 'idle',
+      deskIndex: deskIndex,
     };
     agents.set(id, record);
     agentLogs.set(id, []);
@@ -219,7 +233,7 @@ function startAgent({ projectName, hubUrl }) {
     setTimeout(() => {
       finalize({
         ok: true,
-        agent: { id, name: agentName, project: projectName },
+        agent: { id, name: agentName, project: projectName, deskIndex },
       });
     }, 500);
   });
@@ -239,6 +253,39 @@ function stopAgent({ agentId }) {
     console.error(`[Agent] Failed to stop ${agentId}:`, error);
     return { ok: false, reason: "kill_failed", error: error.message };
   }
+}
+
+function dissolveProject(projectName) {
+  console.log(`[Dissolve] Dissolving project: ${projectName}`);
+  
+  // Step 1: Find and stop all agents for this project
+  const projectAgents = Array.from(agents.values())
+    .filter(agent => agent.project === projectName);
+  
+  let stoppedCount = 0;
+  projectAgents.forEach(agent => {
+    try {
+      console.log(`[Dissolve] Terminating agent: ${agent.id}`);
+      agent.process.kill();
+      stoppedCount++;
+    } catch (error) {
+      console.error(`[Dissolve] Failed to kill ${agent.id}:`, error);
+    }
+  });
+  
+  // Step 2: Remove from config
+  const config = loadConfig();
+  config.projects = config.projects.filter(p => p.name !== projectName);
+  saveConfig(config);
+  
+  console.log(`[Dissolve] Removed project ${projectName} from config`);
+  console.log(`[Dissolve] Stopped ${stoppedCount} agents`);
+  
+  // Step 3: Broadcast updates
+  broadcastProjects();
+  broadcastAgents();
+  
+  return { ok: true, stoppedAgents: stoppedCount };
 }
 
 function sendMessage({ agentId, text }) {
@@ -368,6 +415,7 @@ ipcMain.handle("projects:list", () => listProjects());
 ipcMain.handle("projects:add", (_event, name) => addProject(name));
 ipcMain.handle("projects:create", (_event, name) => createProject(name));
 ipcMain.handle("projects:remove", (_event, name) => removeProject(name));
+ipcMain.handle("projects:dissolve", (_event, projectName) => dissolveProject(projectName));
 
 ipcMain.handle("agents:list", () => listAgents());
 ipcMain.handle("agents:start", (_event, payload) => startAgent(payload));
@@ -376,3 +424,43 @@ ipcMain.handle("agents:message", (_event, payload) => sendMessage(payload));
 ipcMain.handle("agents:logs", (_event, agentId) => agentLogs.get(agentId) || []);
 
 ipcMain.on("projects:changed", () => broadcastProjects());
+
+// ============= Process Cleanup on Exit =============
+// Kill all PTY processes when app exits (Ctrl+C, SIGINT, SIGTERM)
+function killAllAgents() {
+  console.log('[Cleanup] Killing all agent PTY processes...');
+  let killedCount = 0;
+  
+  agents.forEach((agent, id) => {
+    try {
+      agent.process.kill();
+      killedCount++;
+      console.log(`[Cleanup] Killed agent ${id} (PID ${agent.process.pid})`);
+    } catch (err) {
+      console.error(`[Cleanup] Failed to kill agent ${id}:`, err.message);
+    }
+  });
+  
+  console.log(`[Cleanup] ${killedCount} agent(s) terminated`);
+  agents.clear();
+  agentLogs.clear();
+}
+
+// Handle app quit
+app.on('before-quit', () => {
+  killAllAgents();
+});
+
+// Handle Ctrl+C in terminal (SIGINT)
+process.on('SIGINT', () => {
+  console.log('[Signal] Received SIGINT (Ctrl+C), cleaning up...');
+  killAllAgents();
+  process.exit(0);
+});
+
+// Handle termination signal (SIGTERM)
+process.on('SIGTERM', () => {
+  console.log('[Signal] Received SIGTERM, cleaning up...');
+  killAllAgents();
+  process.exit(0);
+});

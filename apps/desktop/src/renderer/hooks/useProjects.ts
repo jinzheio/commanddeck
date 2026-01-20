@@ -43,6 +43,23 @@ export function useProjects() {
       return res;
   };
 
+  const dissolveProject = async (projectName: string) => {
+    try {
+      const res = await window.commanddeck.dissolveProject(projectName);
+      if (res.ok) {
+        // Clear selection if dissolved project was selected
+        if (selectedProject === projectName) {
+          selectProject(null);
+        }
+        await fetchProjects();
+        console.log(`[Dissolve] Project ${projectName} dissolved. Stopped ${res.stoppedAgents} agents.`);
+      }
+      return res;
+    } catch (err) {
+      return { ok: false, stoppedAgents: 0, error: String(err) };
+    }
+  };
+
   // Initial fetch and subscription
   useEffect(() => {
     fetchProjects();
@@ -61,6 +78,7 @@ export function useProjects() {
       fetchProjects, 
       addProject,
       createProject,
+      dissolveProject,
       loading, 
       error 
   };

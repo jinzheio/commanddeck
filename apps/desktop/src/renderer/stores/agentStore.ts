@@ -7,6 +7,7 @@ export interface Agent {
   pid: number;
   startedAt: string;
   status: 'idle' | 'working' | 'error';
+  deskIndex: number;
 }
 
 interface AgentStore {
