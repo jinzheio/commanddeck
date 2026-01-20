@@ -12,4 +12,9 @@ contextBridge.exposeInMainWorld("commanddeck", {
     ipcRenderer.on("agents-changed", (_event, data) => callback(data)),
   onProjectsChanged: (callback) =>
     ipcRenderer.on("projects-changed", (_event, data) => callback(data)),
+  onAgentLog: (callback) =>
+    ipcRenderer.on("agent-log", (_event, data) => callback(data)),
+  onAgentExit: (callback) =>
+    ipcRenderer.on("agent-exit", (_event, data) => callback(data)),
+  getAgentLogs: (agentId) => ipcRenderer.invoke("agents:logs", agentId),
 });

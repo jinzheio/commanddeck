@@ -137,6 +137,12 @@ function appendAgentLog(id, line) {
   }
 }
 
+function notifyAgentExit(id, info) {
+  if (mainWindow) {
+    mainWindow.webContents.send("agent-exit", { id, ...info });
+  }
+}
+
 function broadcastAgents() {
   if (mainWindow) {
     mainWindow.webContents.send("agents-changed", listAgents());
@@ -230,12 +236,14 @@ function startAgent({ projectName, hubUrl }) {
         agents.delete(id);
         agentLogs.delete(id);
         broadcastAgents();
+        notifyAgentExit(id, { reason: "exit" });
       });
 
-      child.on("error", () => {
+      child.on("error", (error) => {
         agents.delete(id);
         agentLogs.delete(id);
         broadcastAgents();
+        notifyAgentExit(id, { reason: "error", error: error.message });
       });
     };
 
@@ -254,6 +262,16 @@ function startAgent({ projectName, hubUrl }) {
           return;
         }
         finalize({ ok: false, reason: "spawn_failed", error: error.message });
+      });
+
+      child.once("exit", (code, signal) => {
+        if (!resolved) {
+          finalize({
+            ok: false,
+            reason: "exit_early",
+            error: `exit ${code ?? "null"} ${signal ?? ""}`.trim(),
+          });
+        }
       });
     };
 

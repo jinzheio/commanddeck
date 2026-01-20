@@ -110,6 +110,18 @@
         border: 1px solid #232842;
         border-radius: 12px;
       }
+      .log {
+        margin-top: 12px;
+        padding: 12px;
+        background: #0e111c;
+        border-radius: 10px;
+        border: 1px solid #232842;
+        max-height: 240px;
+        overflow: auto;
+        font-size: 12px;
+        color: #c7cae6;
+        white-space: pre-wrap;
+      }
       .events {
         display: grid;
         gap: 12px;
@@ -186,6 +198,7 @@
         <input id="agent-message" placeholder="Type a message and press Send" />
         <button id="agent-send">Send</button>
         <div class="status" id="agent-status"></div>
+        <div class="log" id="agent-log">No logs yet.</div>
       </section>
 
       <section class="events" id="events"></section>
@@ -205,6 +218,7 @@
       const agentMessage = document.getElementById("agent-message");
       const agentSendButton = document.getElementById("agent-send");
       const agentStatus = document.getElementById("agent-status");
+      const agentLog = document.getElementById("agent-log");
       const eventsEl = document.getElementById("events");
 
       let socket;
@@ -212,6 +226,7 @@
       let projects = [];
       let agents = [];
       let selectedProject = localStorage.getItem("commanddeck.project") || "";
+      let isConnected = false;
 
       hubInput.value =
         localStorage.getItem("commanddeck.hub") ||
@@ -264,6 +279,9 @@
         });
 
         agentSendButton.disabled = filtered.length === 0;
+        if (filtered.length === 0) {
+          agentLog.textContent = "No logs yet.";
+        }
       }
 
       function appendEvent(event) {
@@ -312,11 +330,14 @@
         }
 
         socket = new WebSocket(hubUrl);
-        connectButton.disabled = true;
+        connectButton.disabled = false;
         setStatus("Connecting...");
+        connectButton.textContent = "Connecting...";
 
         socket.addEventListener("open", () => {
           setStatus(`Connected to ${hubUrl}`);
+          isConnected = true;
+          connectButton.textContent = "Disconnect";
           socket.send(
             JSON.stringify({
               type: "subscribe",
@@ -335,13 +356,15 @@
         });
 
         socket.addEventListener("close", () => {
-          connectButton.disabled = false;
           setStatus("Disconnected");
+          isConnected = false;
+          connectButton.textContent = "Connect";
         });
 
         socket.addEventListener("error", () => {
-          connectButton.disabled = false;
           setStatus("Connection error");
+          isConnected = false;
+          connectButton.textContent = "Connect";
         });
       }
 
@@ -372,7 +395,13 @@
         await refreshProjects();
       });
 
-      connectButton.addEventListener("click", connect);
+      connectButton.addEventListener("click", () => {
+        if (isConnected && socket) {
+          socket.close();
+          return;
+        }
+        connect();
+      });
 
       agentStartButton.addEventListener("click", async () => {
         if (!selectedProject) {
@@ -380,13 +409,21 @@
           return;
         }
         const hubUrl = hubInput.value.trim();
+        agentStartButton.disabled = true;
         const result = await api.startAgent({
           projectName: selectedProject,
           hubUrl,
         });
         if (!result.ok) {
-          setStatus(`Failed to start agent: ${result.reason || "unknown"}`);
+          setStatus(
+            `Failed to start agent: ${result.reason || "unknown"}${
+              result.error ? ` (${result.error})` : ""
+            }`
+          );
+        } else {
+          setStatus(`Started agent ${result.agent.name}`);
         }
+        agentStartButton.disabled = false;
         await refreshAgents();
       });
 
@@ -398,14 +435,37 @@
         if (result.ok) {
           agentStatus.textContent = "Message sent";
         } else {
-          agentStatus.textContent = `Send failed: ${result.reason || "unknown"}`;
+          agentStatus.textContent = `Send failed: ${result.reason || "unknown"}${
+            result.error ? ` (${result.error})` : ""
+          }`;
         }
         agentMessage.value = "";
+      });
+
+      agentSelect.addEventListener("change", async () => {
+        const agentId = agentSelect.value;
+        const logs = await api.getAgentLogs(agentId);
+        agentLog.textContent = logs.length ? logs.join("") : "No logs yet.";
       });
 
       api.onAgentsChanged((nextAgents) => {
         agents = nextAgents;
         renderAgents();
+      });
+
+      api.onAgentLog(({ id, line }) => {
+        if (agentSelect.value === id) {
+          agentLog.textContent += line;
+          agentLog.scrollTop = agentLog.scrollHeight;
+        }
+      });
+
+      api.onAgentExit(({ id, reason, error }) => {
+        if (agentSelect.value === id) {
+          agentLog.textContent += `\n[agent exited: ${reason}${
+            error ? ` (${error})` : ""
+          }]\n`;
+        }
       });
 
       api.onProjectsChanged((nextProjects) => {
