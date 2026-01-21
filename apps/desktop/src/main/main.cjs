@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 const pty = require("node-pty");
+const { execSync } = require("child_process");
 
 const PROJECTS_DIR = path.join(os.homedir(), "Projects");
 const CONFIG_DIR = path.join(os.homedir(), ".commanddeck");
@@ -424,6 +425,184 @@ ipcMain.handle("agents:message", (_event, payload) => sendMessage(payload));
 ipcMain.handle("agents:logs", (_event, agentId) => agentLogs.get(agentId) || []);
 
 ipcMain.on("projects:changed", () => broadcastProjects());
+
+// ============= Git Integration =============
+// Get list of modified files in a project
+function getGitChanges(projectName) {
+  const projectPath = path.join(PROJECTS_DIR, projectName);
+  
+  if (!fs.existsSync(projectPath)) {
+    return { ok: false, reason: "project_not_found" };
+  }
+  
+  try {
+    // Get status of modified files
+    const statusOutput = execSync('git status --porcelain', { 
+      cwd: projectPath, 
+      encoding: 'utf-8' 
+    });
+    
+    const changes = [];
+    const lines = statusOutput.split('\n').filter(l => l.trim());
+    
+    for (const line of lines) {
+      const status = line.substring(0, 2);
+      const filePath = line.substring(3);
+      
+      // M = modified, A = added, D = deleted, ?? = untracked
+      if (status.includes('M') || status.includes('A') || status.includes('D') || status === '??') {
+        // Determine the actual status
+        let fileStatus = 'modified';
+        if (status === '??') {
+          fileStatus = 'added'; // Treat untracked as "added"
+        } else if (status.includes('A')) {
+          fileStatus = 'added';
+        } else if (status.includes('D')) {
+          fileStatus = 'deleted';
+        }
+        
+        // Get diff stats for this file (skip for untracked files as they won't have diff)
+        let additions = 0;
+        let deletions = 0;
+        
+        if (status !== '??') {
+          try {
+            const diffStats = execSync(`git diff --numstat HEAD -- "${filePath}"`, {
+              cwd: projectPath,
+              encoding: 'utf-8'
+            }).trim();
+            
+            const [add = '0', del = '0'] = diffStats.split('\t');
+            additions = parseInt(add) || 0;
+            deletions = parseInt(del) || 0;
+          } catch (err) {
+            // If diff fails, use 0 stats
+          }
+        } else {
+          // For untracked files, count lines in the file as additions
+          try {
+            const fullPath = path.join(projectPath, filePath);
+            const content = fs.readFileSync(fullPath, 'utf-8');
+            additions = content.split('\n').length;
+          } catch {
+            additions = 0;
+          }
+        }
+        
+        changes.push({
+          file: filePath,
+          status: fileStatus,
+          additions,
+          deletions,
+          timestamp: Date.now()
+        });
+      }
+    }
+    
+    return { ok: true, changes };
+  } catch (err) {
+    console.error('[Git] Failed to get changes:', err.message);
+    return { ok: false, reason: err.message };
+  }
+}
+
+// Get diff for a specific file
+function getGitDiff(projectName, filePath) {
+  const projectPath = path.join(PROJECTS_DIR, projectName);
+  
+  if (!fs.existsSync(projectPath)) {
+    return { ok: false, reason: "project_not_found" };
+  }
+  
+  const fullFilePath = path.join(projectPath, filePath);
+  if (!fs.existsSync(fullFilePath)) {
+    return { ok: false, reason: "file_not_found" };
+  }
+  
+  try {
+    // Get the unified diff
+    const diff = execSync(`git diff HEAD -- "${filePath}"`, {
+      cwd: projectPath,
+      encoding: 'utf-8'
+    });
+    
+    // Get old content (HEAD version)
+    let oldContent = '';
+    try {
+      oldContent = execSync(`git show HEAD:"${filePath}"`, {
+        cwd: projectPath,
+        encoding: 'utf-8'
+      });
+    } catch {
+      // File might be new
+      oldContent = '';
+    }
+    
+    // Get new content (working directory)
+    const newContent = fs.readFileSync(fullFilePath, 'utf-8');
+    
+    return {
+      ok: true,
+      filePath,
+      diff,
+      oldContent,
+      newContent
+    };
+  } catch (err) {
+    console.error('[Git] Failed to get diff:', err.message);
+    return { ok: false, reason: err.message };
+  }
+}
+
+// Approve change (stage file)
+function approveGitChange(projectName, filePath) {
+  const projectPath = path.join(PROJECTS_DIR, projectName);
+  
+  if (!fs.existsSync(projectPath)) {
+    return { ok: false, reason: "project_not_found" };
+  }
+  
+  try {
+    execSync(`git add "${filePath}"`, {
+      cwd: projectPath,
+      encoding: 'utf-8'
+    });
+    
+    console.log(`[Git] Approved change: ${filePath}`);
+    return { ok: true };
+  } catch (err) {
+    console.error('[Git] Failed to approve change:', err.message);
+    return { ok: false, reason: err.message };
+  }
+}
+
+// Reject change (discard file changes)
+function rejectGitChange(projectName, filePath) {
+  const projectPath = path.join(PROJECTS_DIR, projectName);
+  
+  if (!fs.existsSync(projectPath)) {
+    return { ok: false, reason: "project_not_found" };
+  }
+  
+  try {
+    execSync(`git restore "${filePath}"`, {
+      cwd: projectPath,
+      encoding: 'utf-8'
+    });
+    
+    console.log(`[Git] Rejected change: ${filePath}`);
+    return { ok: true };
+  } catch (err) {
+    console.error('[Git] Failed to reject change:', err.message);
+    return { ok: false, reason: err.message };
+  }
+}
+
+// Git IPC handlers
+ipcMain.handle("git:getChanges", (_event, projectName) => getGitChanges(projectName));
+ipcMain.handle("git:getDiff", (_event, { projectName, filePath }) => getGitDiff(projectName, filePath));
+ipcMain.handle("git:approveChange", (_event, { projectName, filePath }) => approveGitChange(projectName, filePath));
+ipcMain.handle("git:rejectChange", (_event, { projectName, filePath }) => rejectGitChange(projectName, filePath));
 
 // ============= Process Cleanup on Exit =============
 // Kill all PTY processes when app exits (Ctrl+C, SIGINT, SIGTERM)

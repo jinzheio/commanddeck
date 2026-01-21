@@ -33,6 +33,8 @@ export function ProjectZone({
   onDissolve,
   onSendMessage,
   onBubbleClick,
+  onProjectClick,
+  isSelectedForChanges,
   selectedAgentId
 }: ProjectZoneProps) {
   const isVacant = !project || isEmpty;
@@ -100,19 +102,29 @@ export function ProjectZone({
       setCommandInput('');
     }
   };
+
+  const handleProjectClick = (e: React.MouseEvent) => {
+    // Only trigger if clicking the main area, not on buttons/agents
+    if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.project-area')) {
+      if (onProjectClick) {
+        onProjectClick();
+      }
+    }
+  };
   
   return (
     <div 
-      onClick={onSelect}
+      onClick={handleProjectClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onKeyDown={(e) => e.key === 'Enter' && onSelect()}
+      onKeyDown={(e) => e.key === 'Enter' && handleProjectClick(e as any)}
       role="button"
       tabIndex={0}
       className={clsx(
-        "panel h-64 flex flex-col transition-all duration-300 cursor-pointer group relative overflow-visible",
+        "panel h-64 flex flex-col transition-all duration-300 cursor-pointer group relative overflow-visible project-area",
         isVacant && "bg-black/80 border-rim-border/30 hover:border-rim-accent/50",
-        !isVacant && "hover:bg-rim-panel/50 hover:border-rim-muted"
+        !isVacant && "hover:bg-rim-panel/50 hover:border-rim-muted",
+        isSelectedForChanges && "border-rim-accent border-2 shadow-lg shadow-rim-accent/20"
       )}
     >
       {/* Header */}

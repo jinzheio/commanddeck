@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useProjects } from './hooks/useProjects';
 import { useAgents } from './hooks/useAgents';
+import { useGitChanges } from './hooks/useGitChanges';
 import { useWebSocket } from './hooks/useWebSocket';
 import { ProjectZone } from './components/World/ProjectZone';
 import { WorldMap } from './components/World/WorldMap';
 import { AgentOutputModal } from './components/AgentOutputModal';
+import { ChangeQueue } from './components/ChangeQueue';
+import { DiffViewerModal } from './components/DiffViewerModal';
 import { COLONY_SLOTS } from './config/colony';
 import clsx from 'clsx';
 
@@ -20,6 +23,21 @@ function App() {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
   const [modalAgentId, setModalAgentId] = useState<string | null>(null);
+  const [selectedProjectForChanges, setSelectedProjectForChanges] = useState<string | null>(null);
+  const [diffFilePath, setDiffFilePath] = useState<string | null>(null);
+
+  // Git changes for selected project
+  const { changes, fetchChanges, approveChange, rejectChange, approveAll, rejectAll } = useGitChanges(selectedProjectForChanges);
+
+  // Auto-fetch changes when selecting a project
+  useEffect(() => {
+    if (selectedProjectForChanges) {
+      fetchChanges();
+      // Refresh every 5 seconds
+      const interval = setInterval(fetchChanges, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedProjectForChanges, fetchChanges]);
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
@@ -67,6 +85,20 @@ function App() {
   const getProjectAgents = (projectName: string) => 
     allAgents.filter(a => a.project === projectName);
 
+  const handleViewDiff = (filePath: string) => {
+    setDiffFilePath(filePath);
+  };
+
+  const handleApprove = async (filePath: string) => {
+    await approveChange(filePath);
+    setDiffFilePath(null);
+  };
+
+  const handleReject = async (filePath: string) => {
+    await rejectChange(filePath);
+    setDiffFilePath(null);
+  };
+
   const modalAgent = modalAgentId ? allAgents.find(a => a.id === modalAgentId) : null;
   const modalLogs = modalAgentId ? (logs[modalAgentId] || []) : [];
 
@@ -78,6 +110,11 @@ function App() {
           <span className="font-bold tracking-wider text-rim-accent">COMMANDDECK</span>
           <div className="h-4 w-[1px] bg-rim-border mx-2" />
           <span className="text-xs text-rim-muted">COLONY VIEW</span>
+          {selectedProjectForChanges && changes.length > 0 && (
+            <span className="text-xs bg-rim-accent/20 text-rim-accent px-2 py-0.5 rounded">
+              {changes.length} changes
+            </span>
+          )}
         </div>
         
         <div className="flex items-center gap-4 text-xs">
@@ -117,6 +154,8 @@ function App() {
                   onDissolve={() => project && handleDissolveProject(project.name)}
                   onSendMessage={handleSendMessage}
                   onBubbleClick={handleBubbleClick}
+                  onProjectClick={() => project && setSelectedProjectForChanges(project.name)}
+                  isSelectedForChanges={selectedProjectForChanges === project?.name}
                   agents={projectAgents}
                   desks={slot.desks}
                   selectedAgentId={selectedAgentId}
@@ -126,6 +165,18 @@ function App() {
           })}
         </WorldMap>
       </main>
+
+      {/* Change Queue - Shows when project selected and has changes */}
+      {selectedProjectForChanges && changes.length > 0 && (
+        <ChangeQueue
+          projectName={selectedProjectForChanges}
+          changes={changes}
+          onViewDiff={handleViewDiff}
+          onApproveAll={approveAll}
+          onRejectAll={rejectAll}
+          onClose={() => setSelectedProjectForChanges(null)}
+        />
+      )}
 
       {/* Bottom Bar - Only for Create Project */}
       {selectedSlotId !== null && !projects[selectedSlotId] && (
@@ -167,6 +218,15 @@ function App() {
         agent={modalAgent || null}
         logs={modalLogs}
         onClose={() => setModalAgentId(null)}
+      />
+
+      {/* Diff Viewer Modal */}
+      <DiffViewerModal
+        projectName={selectedProjectForChanges}
+        filePath={diffFilePath}
+        onClose={() => setDiffFilePath(null)}
+        onApprove={handleApprove}
+        onReject={handleReject}
       />
     </div>
   );

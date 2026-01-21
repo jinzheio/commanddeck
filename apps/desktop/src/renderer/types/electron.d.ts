@@ -12,6 +12,11 @@ export interface ICommandDeckAPI {
   onProjectsChanged: (callback: (projects: any[]) => void) => void;
   onAgentLog: (callback: (data: { id: string; line: string }) => void) => void;
   onAgentExit: (callback: (data: { id: string; reason: string; error?: string }) => void) => void;
+  // Git integration
+  getGitChanges: (projectName: string) => Promise<{ ok: boolean; changes?: any[]; reason?: string }>;
+  getGitDiff: (projectName: string, filePath: string) => Promise<{ ok: boolean; filePath?: string; diff?: string; oldContent?: string; newContent?: string; reason?: string }>;
+  approveGitChange: (projectName: string, filePath: string) => Promise<{ ok: boolean; reason?: string }>;
+  rejectGitChange: (projectName: string, filePath: string) => Promise<{ ok: boolean; reason?: string }>;
 }
 
 declare global {

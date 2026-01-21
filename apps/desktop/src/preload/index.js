@@ -19,4 +19,9 @@ contextBridge.exposeInMainWorld("commanddeck", {
   onAgentExit: (callback) =>
     ipcRenderer.on("agent-exit", (_event, data) => callback(data)),
   getAgentLogs: (agentId) => ipcRenderer.invoke("agents:logs", agentId),
+  // Git integration
+  getGitChanges: (projectName) => ipcRenderer.invoke("git:getChanges", projectName),
+  getGitDiff: (projectName, filePath) => ipcRenderer.invoke("git:getDiff", { projectName, filePath }),
+  approveGitChange: (projectName, filePath) => ipcRenderer.invoke("git:approveChange", { projectName, filePath }),
+  rejectGitChange: (projectName, filePath) => ipcRenderer.invoke("git:rejectChange", { projectName, filePath }),
 });
