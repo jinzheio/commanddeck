@@ -60,6 +60,18 @@ export function useProjects() {
     }
   };
 
+  const updateProject = async (name: string, updates: { name?: string; domain?: string | null }) => {
+    try {
+      const res = await window.commanddeck.updateProject({ name, updates });
+      if (res.ok) {
+        await fetchProjects();
+      }
+      return res;
+    } catch (err) {
+      return { ok: false, reason: String(err) };
+    }
+  };
+
   // Initial fetch and subscription
   useEffect(() => {
     fetchProjects();
@@ -79,6 +91,7 @@ export function useProjects() {
       addProject,
       createProject,
       dissolveProject,
+      updateProject,
       loading, 
       error 
   };

@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld("commanddeck", {
   addProject: (name) => ipcRenderer.invoke("projects:add", name),
   createProject: (name) => ipcRenderer.invoke("projects:create", name),
   removeProject: (name) => ipcRenderer.invoke("projects:remove", name),
+  updateProject: (payload) => ipcRenderer.invoke("projects:update", payload),
   dissolveProject: (projectName) => ipcRenderer.invoke("projects:dissolve", projectName),
   getAgents: () => ipcRenderer.invoke("agents:list"),
   startAgent: (payload) => ipcRenderer.invoke("agents:start", payload),

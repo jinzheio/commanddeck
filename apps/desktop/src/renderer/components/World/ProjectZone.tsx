@@ -19,6 +19,7 @@ interface ProjectZoneProps {
   onSendMessage?: (agentId: string, text: string) => void;
   onBubbleClick?: (agentId: string) => void;
   onProjectClick?: () => void;
+  onProjectEdit?: () => void;
   isSelectedForChanges?: boolean;
   selectedAgentId?: string | null;
 }
@@ -37,6 +38,7 @@ export function ProjectZone({
   onSendMessage,
   onBubbleClick,
   onProjectClick,
+  onProjectEdit,
   isSelectedForChanges,
   selectedAgentId
 }: ProjectZoneProps) {
@@ -160,16 +162,29 @@ export function ProjectZone({
             <span>{agents.length}/{desks.length}</span>
           </div>
         )}
-        {/* Dissolve button shows on hover */}
-        {!isVacant && onDissolve && isHovered && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onDissolve(); }}
-            className="bg-rim-error/90 backdrop-blur-sm border border-rim-error text-white rounded px-1.5 py-0.5 text-[10px] hover:bg-rim-error transition-colors"
-            title="Dissolve Project"
-          >
-            ✕
-          </button>
+        {!isVacant && isHovered && (
+          <>
+            {onProjectEdit && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onProjectEdit(); }}
+                className="text-white rounded px-1.5 py-0.5 text-[20px] hover:bg-rim-bg transition-colors"
+                title="Project Settings"
+              >
+                ⚙
+              </button>
+            )}
+            {onDissolve && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onDissolve(); }}
+                className="text-red-500 rounded px-1.5 py-0.5 text-[20px] hover:bg-red-500/10 transition-colors"
+                title="Dissolve Project"
+              >
+                ✕
+              </button>
+            )}
+          </>
         )}
       </div>
 

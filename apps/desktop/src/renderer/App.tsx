@@ -10,11 +10,13 @@ import { AgentOutputModal } from './components/AgentOutputModal';
 import { ChangeQueue } from './components/ChangeQueue';
 import { DiffViewerModal } from './components/DiffViewerModal';
 import { TrafficPanel } from './components/TrafficPanel';
+import { ProjectSettingsModal } from './components/ProjectSettingsModal';
 import { COLONY_SLOTS } from './config/colony';
 import clsx from 'clsx';
+import type { Project } from './stores/projectStore';
 
 function App() {
-  const { projects, createProject, dissolveProject } = useProjects();
+  const { projects, createProject, dissolveProject, updateProject } = useProjects();
   const { allAgents, startAgent, stopAgent, sendMessage, logs } = useAgents();
   
   // Connect to websocket
@@ -29,6 +31,7 @@ function App() {
   const [selectedProjectForChanges, setSelectedProjectForChanges] = useState<string | null>(null);
   const [diffFilePath, setDiffFilePath] = useState<string | null>(null);
   const [diffFileStatus, setDiffFileStatus] = useState<'added' | 'modified' | 'deleted' | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   // Git changes for selected project
   const { changes, fetchChanges, approveChange, rejectChange, approveAll, rejectAll } = useGitChanges(selectedProjectForChanges);
@@ -99,6 +102,21 @@ function App() {
     if (confirmDissolve) {
       await dissolveProject(projectName);
     }
+  };
+
+  const handleSaveProjectSettings = async (updates: { name: string; domain: string | null }) => {
+    if (!editingProject) return { ok: false, reason: 'no_project' };
+    const result = await updateProject(editingProject.name, updates);
+    if (result.ok) {
+      const nextName = updates.name;
+      if (selectedProjectForChanges === editingProject.name) {
+        setSelectedProjectForChanges(nextName);
+      }
+      if (editingProject.name !== nextName && selectedAgentId) {
+        setSelectedAgentId(null);
+      }
+    }
+    return result;
   };
 
   const handleSendMessage = async (agentId: string, text: string) => {
@@ -196,6 +214,7 @@ function App() {
                   onAgentClick={handleAgentClick}
                   onAgentStop={(payload) => stopAgent(payload)}
                   onDissolve={() => project && handleDissolveProject(project.name)}
+                  onProjectEdit={() => project && setEditingProject(project)}
                   onSendMessage={handleSendMessage}
                   onBubbleClick={handleBubbleClick}
                   onProjectClick={() => {
@@ -306,6 +325,12 @@ function App() {
         onApprove={handleApprove}
         onReject={handleReject}
         fileStatus={diffFileStatus}
+      />
+
+      <ProjectSettingsModal
+        project={editingProject}
+        onClose={() => setEditingProject(null)}
+        onSave={handleSaveProjectSettings}
       />
     </div>
   );

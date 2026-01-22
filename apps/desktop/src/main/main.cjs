@@ -115,6 +115,49 @@ function removeProject(name) {
   return { ok: true };
 }
 
+function updateProject(name, updates = {}) {
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return { ok: false, reason: "empty" };
+  }
+  const config = loadConfig();
+  const index = config.projects.findIndex((project) => project.name === trimmed);
+  if (index === -1) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  const nextNameRaw = updates.name !== undefined ? String(updates.name).trim() : trimmed;
+  if (!nextNameRaw) {
+    return { ok: false, reason: "empty" };
+  }
+  if (nextNameRaw !== trimmed) {
+    const nameExists = config.projects.some((project) => project.name === nextNameRaw);
+    if (nameExists) {
+      return { ok: false, reason: "duplicate" };
+    }
+  }
+
+  const nextDomainRaw = updates.domain !== undefined ? String(updates.domain).trim() : config.projects[index].domain;
+  const nextDomain = nextDomainRaw ? nextDomainRaw : null;
+
+  config.projects[index] = {
+    ...config.projects[index],
+    name: nextNameRaw,
+    domain: nextDomain,
+  };
+  saveConfig(config);
+
+  if (nextNameRaw !== trimmed) {
+    agents.forEach((agent) => {
+      if (agent.project === trimmed) {
+        agent.project = nextNameRaw;
+      }
+    });
+  }
+
+  return { ok: true, project: config.projects[index], renamedFrom: trimmed };
+}
+
 function listAgents() {
   return Array.from(agents.values()).map((agent) => ({
     id: agent.id,
@@ -437,6 +480,7 @@ ipcMain.handle("projects:list", () => listProjects());
 ipcMain.handle("projects:add", (_event, name) => addProject(name));
 ipcMain.handle("projects:create", (_event, name) => createProject(name));
 ipcMain.handle("projects:remove", (_event, name) => removeProject(name));
+ipcMain.handle("projects:update", (_event, payload) => updateProject(payload?.name, payload?.updates));
 ipcMain.handle("projects:dissolve", (_event, projectName) => dissolveProject(projectName));
 
 ipcMain.handle("agents:list", () => listAgents());
