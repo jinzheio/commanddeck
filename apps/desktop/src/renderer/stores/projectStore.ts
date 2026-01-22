@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export interface Project {
   name: string;
   path?: string;
+  domain?: string | null;
 }
 
 interface ProjectStore {

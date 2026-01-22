@@ -53,6 +53,27 @@ function listProjects() {
   return config.projects;
 }
 
+function folderNameFromProject(name) {
+  const trimmed = name.trim();
+  if (!trimmed) return trimmed;
+  if (!trimmed.includes(".")) return trimmed;
+  const parts = trimmed.split(".").filter(Boolean);
+  if (parts.length <= 1) return trimmed;
+  parts.pop();
+  const joined = parts.join("");
+  return joined || trimmed;
+}
+
+function resolveProjectPath(projectName) {
+  const config = loadConfig();
+  const entry = config.projects.find((project) => project.name === projectName);
+  if (entry?.path) {
+    return entry.path;
+  }
+  const folderName = folderNameFromProject(projectName);
+  return path.join(PROJECTS_DIR, folderName);
+}
+
 function addProject(name) {
   const trimmed = name.trim();
   if (!trimmed) {
@@ -63,11 +84,11 @@ function addProject(name) {
   if (existing) {
     return { ok: true, project: existing };
   }
-  const projectPath = path.join(PROJECTS_DIR, trimmed);
+  const projectPath = resolveProjectPath(trimmed);
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "missing", path: projectPath };
   }
-  const project = { name: trimmed, path: projectPath };
+  const project = { name: trimmed, path: projectPath, domain: null };
   config.projects.push(project);
   saveConfig(config);
   return { ok: true, project };
@@ -75,7 +96,7 @@ function addProject(name) {
 
 function createProject(name) {
   const trimmed = name.trim();
-  const projectPath = path.join(PROJECTS_DIR, trimmed);
+  const projectPath = resolveProjectPath(trimmed);
   fs.mkdirSync(projectPath, { recursive: true });
   const config = loadConfig();
   const existing = config.projects.find((project) => project.name === trimmed);
@@ -83,7 +104,7 @@ function createProject(name) {
     config.projects.push({ name: trimmed, path: projectPath });
     saveConfig(config);
   }
-  return { ok: true, project: { name: trimmed, path: projectPath } };
+  return { ok: true, project: { name: trimmed, path: projectPath, domain: null } };
 }
 
 function removeProject(name) {
@@ -167,7 +188,7 @@ function nextAgentName(projectName) {
 }
 
 function startAgent({ projectName, hubUrl, deskIndex }) {
-  const projectPath = path.join(PROJECTS_DIR, projectName);
+  const projectPath = resolveProjectPath(projectName);
   console.log(`[Agent] Starting agent for project: ${projectName} at desk ${deskIndex}`);
   
   if (!fs.existsSync(projectPath)) {
@@ -429,7 +450,7 @@ ipcMain.on("projects:changed", () => broadcastProjects());
 // ============= Git Integration =============
 // Get list of modified files in a project
 function getGitChanges(projectName) {
-  const projectPath = path.join(PROJECTS_DIR, projectName);
+  const projectPath = resolveProjectPath(projectName);
   
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "project_not_found" };
@@ -508,7 +529,7 @@ function getGitChanges(projectName) {
 
 // Get diff for a specific file
 function getGitDiff(projectName, filePath) {
-  const projectPath = path.join(PROJECTS_DIR, projectName);
+  const projectPath = resolveProjectPath(projectName);
   
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "project_not_found" };
@@ -556,7 +577,7 @@ function getGitDiff(projectName, filePath) {
 
 // Approve change (stage file)
 function approveGitChange(projectName, filePath) {
-  const projectPath = path.join(PROJECTS_DIR, projectName);
+  const projectPath = resolveProjectPath(projectName);
   
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "project_not_found" };
@@ -578,7 +599,7 @@ function approveGitChange(projectName, filePath) {
 
 // Reject change (discard file changes)
 function rejectGitChange(projectName, filePath) {
-  const projectPath = path.join(PROJECTS_DIR, projectName);
+  const projectPath = resolveProjectPath(projectName);
   
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "project_not_found" };

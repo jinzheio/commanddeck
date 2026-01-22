@@ -59,6 +59,21 @@ CREATE TABLE IF NOT EXISTS agents (
 );
 
 CREATE INDEX IF NOT EXISTS idx_agents_project ON agents(project_id);
+
+CREATE TABLE IF NOT EXISTS cf_analytics_hourly (
+  project_id TEXT NOT NULL,
+  zone_id TEXT NOT NULL,
+  ts_hour_utc TEXT NOT NULL,
+  requests INTEGER,
+  status_4xx INTEGER,
+  status_5xx INTEGER,
+  cache_hit_ratio REAL,
+  countries_top3 TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (project_id, ts_hour_utc)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cf_analytics_project ON cf_analytics_hourly(project_id, ts_hour_utc DESC);
 `);
 
 const insertEventStmt = db.prepare(`
@@ -101,6 +116,78 @@ const getEventsSinceStmt = db.prepare(`
   SELECT * FROM events
   WHERE project_id = ? AND id > ?
   ORDER BY id ASC
+`);
+
+const upsertAnalyticsStmt = db.prepare(`
+  INSERT INTO cf_analytics_hourly (
+    project_id,
+    zone_id,
+    ts_hour_utc,
+    requests,
+    status_4xx,
+    status_5xx,
+    cache_hit_ratio,
+    countries_top3,
+    created_at
+  ) VALUES (
+    @project_id,
+    @zone_id,
+    @ts_hour_utc,
+    @requests,
+    @status_4xx,
+    @status_5xx,
+    @cache_hit_ratio,
+    @countries_top3,
+    @created_at
+  )
+  ON CONFLICT(project_id, ts_hour_utc) DO UPDATE SET
+    zone_id = excluded.zone_id,
+    requests = excluded.requests,
+    status_4xx = excluded.status_4xx,
+    status_5xx = excluded.status_5xx,
+    cache_hit_ratio = excluded.cache_hit_ratio,
+    countries_top3 = excluded.countries_top3,
+    created_at = excluded.created_at
+`);
+
+const upsertCountriesStmt = db.prepare(`
+  INSERT OR IGNORE INTO cf_analytics_hourly (
+    project_id,
+    zone_id,
+    ts_hour_utc,
+    requests,
+    status_4xx,
+    status_5xx,
+    cache_hit_ratio,
+    countries_top3,
+    created_at
+  ) VALUES (
+    @project_id,
+    @zone_id,
+    @ts_hour_utc,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    @countries_top3,
+    @created_at
+  )
+`);
+
+const updateCountriesStmt = db.prepare(`
+  UPDATE cf_analytics_hourly
+  SET countries_top3 = @countries_top3,
+      created_at = @created_at
+  WHERE project_id = @project_id
+    AND ts_hour_utc = @ts_hour_utc
+`);
+
+const getAnalyticsRangeStmt = db.prepare(`
+  SELECT *
+  FROM cf_analytics_hourly
+  WHERE project_id = ?
+    AND ts_hour_utc >= ?
+  ORDER BY ts_hour_utc ASC
 `);
 
 function serializePayload(payload: AgentEvent["payload"]) {
@@ -172,4 +259,32 @@ export function getEventsSince(
     client_ts: row.client_ts ?? undefined,
     server_ts: row.server_ts,
   }));
+}
+
+export type CloudflareHourly = {
+  project_id: string;
+  zone_id: string;
+  ts_hour_utc: string;
+  requests: number | null;
+  status_4xx: number | null;
+  status_5xx: number | null;
+  cache_hit_ratio: number | null;
+  countries_top3: string | null;
+  created_at: string;
+};
+
+export function upsertAnalytics(row: CloudflareHourly) {
+  upsertAnalyticsStmt.run(row);
+}
+
+export function upsertCountriesTop3(row: CloudflareHourly) {
+  upsertCountriesStmt.run(row);
+  updateCountriesStmt.run(row);
+}
+
+export function getAnalyticsRange(
+  projectId: string,
+  sinceHourUtc: string
+): CloudflareHourly[] {
+  return getAnalyticsRangeStmt.all(projectId, sinceHourUtc) as CloudflareHourly[];
 }

@@ -1,15 +1,36 @@
 import Fastify from "fastify";
 import websocket from "@fastify/websocket";
+import cors from "@fastify/cors";
 import type { WebSocket } from "ws";
+import dotenv from "dotenv";
+import path from "path";
 import {
   AgentEventSchema,
   type StoredEvent,
   WsMessageSchema,
 } from "@commanddeck/protocol";
-import { getEventsSince, insertEvent, upsertAgent } from "./store";
+import { getEventsSince, getAnalyticsRange, insertEvent, upsertAgent } from "./store";
+import { scheduleCloudflarePolling } from "./cloudflare";
 
 const app = Fastify({ logger: true });
 const clients = new Map<WebSocket, string>();
+
+function loadEnv() {
+  const cwd = process.cwd();
+  const candidates = [
+    path.join(cwd, ".env"),
+    path.join(cwd, "..", "..", ".env"),
+    path.join(process.env.HOME ?? "", ".commanddeck", ".env"),
+  ];
+  for (const candidate of candidates) {
+    const result = dotenv.config({ path: candidate });
+    if (!result.error) return candidate;
+  }
+  dotenv.config();
+  return null;
+}
+
+const envPath = loadEnv();
 
 function broadcast(event: StoredEvent) {
   const message = JSON.stringify({ type: "event", event });
@@ -21,6 +42,9 @@ function broadcast(event: StoredEvent) {
 }
 
 async function start() {
+  await app.register(cors, {
+    origin: "http://localhost:5173",
+  });
   await app.register(websocket);
 
   app.post("/events", async (req, reply) => {
@@ -83,11 +107,35 @@ async function start() {
     });
   });
 
+  app.get("/analytics", async (req, reply) => {
+    const projectId = (req.query as any)?.project_id;
+    const hoursParam = (req.query as any)?.hours;
+    if (!projectId || typeof projectId !== "string") {
+      return reply.status(400).send({ error: "project_id is required" });
+    }
+    const hours = Number(hoursParam ?? 24);
+    const safeHours = Number.isFinite(hours) && hours > 0 ? Math.min(hours, 168) : 24;
+    const now = new Date();
+    const end = new Date(now);
+    end.setUTCMinutes(0, 0, 0);
+    const start = new Date(end.getTime() - safeHours * 60 * 60 * 1000);
+    const data = getAnalyticsRange(projectId, start.toISOString());
+    return { ok: true, data };
+  });
+
   const port = Number(process.env.PORT ?? 8787);
   const host = process.env.HOST ?? "127.0.0.1";
 
   await app.listen({ port, host });
   app.log.info(`Hub listening on http://${host}:${port}`);
+  if (envPath) {
+    app.log.info(`Loaded env from ${envPath}`);
+  }
+  if (!process.env.CLOUDFLARE_API_TOKEN) {
+    app.log.warn("CLOUDFLARE_API_TOKEN is not set; analytics polling disabled.");
+  }
+
+  scheduleCloudflarePolling();
 }
 
 start().catch((err) => {

@@ -22,6 +22,22 @@ CommandDeck 读取全局配置：`~/.commanddeck/projects.json`。
 2. 如果 `~/Projects/mpwriter` 不存在，UI 会提示是否创建该目录。
 3. 创建后会自动写入 `projects.json`。
 
+如果项目名不是域名但需要 Cloudflare 数据，请在 `projects.json` 里设置 `domain`：
+
+```json
+{
+  "projects": [
+    {
+      "name": "newlayer",
+      "path": "/Users/you/Projects/newlayer",
+      "domain": "newlayer.dev"
+    }
+  ]
+}
+```
+
+没有 `domain` 的项目会被视为非网站项目，Hub 会跳过 Cloudflare Analytics 拉取。
+
 配置文件示例：
 
 ```json

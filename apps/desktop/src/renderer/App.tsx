@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useProjects } from './hooks/useProjects';
 import { useAgents } from './hooks/useAgents';
 import { useGitChanges } from './hooks/useGitChanges';
+import { useAnalytics } from './hooks/useAnalytics';
 import { useWebSocket } from './hooks/useWebSocket';
 import { ProjectZone } from './components/World/ProjectZone';
 import { WorldMap } from './components/World/WorldMap';
 import { AgentOutputModal } from './components/AgentOutputModal';
 import { ChangeQueue } from './components/ChangeQueue';
 import { DiffViewerModal } from './components/DiffViewerModal';
+import { TrafficPanel } from './components/TrafficPanel';
 import { COLONY_SLOTS } from './config/colony';
 import clsx from 'clsx';
 
@@ -29,6 +31,10 @@ function App() {
 
   // Git changes for selected project
   const { changes, fetchChanges, approveChange, rejectChange, approveAll, rejectAll } = useGitChanges(selectedProjectForChanges);
+  const selectedProject = selectedProjectForChanges
+    ? projects.find((project) => project.name === selectedProjectForChanges) || null
+    : null;
+  const analytics = useAnalytics(selectedProject, 24);
 
   // Auto-fetch changes when selecting a project
   useEffect(() => {
@@ -46,6 +52,7 @@ function App() {
     await createProject(newProjectName);
     setNewProjectName('');
     setSelectedSlotId(null);
+    setInhabitAnchor(null);
     setIsCreating(false);
   };
 
@@ -254,6 +261,17 @@ function App() {
           </div>
         )}
       </main>
+
+      {selectedProjectForChanges && (
+        <TrafficPanel
+          project={selectedProject}
+          rows={analytics.rows}
+          loading={analytics.loading}
+          error={analytics.error}
+          onClose={() => setSelectedProjectForChanges(null)}
+          onRefresh={analytics.refresh}
+        />
+      )}
 
       {/* Change Queue - Shows when project selected and has changes */}
       {selectedProjectForChanges && changes.length > 0 && (
