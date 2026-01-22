@@ -48,6 +48,20 @@ function App() {
     setIsCreating(false);
   };
 
+  // Global shortcut listeners
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedProjectForChanges(null);
+        setSelectedAgentId(null);
+        setSelectedSlotId(null);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleSlotClick = (slotId: number, project?: any) => {
     if (!project) {
       setSelectedSlotId(slotId);
@@ -146,7 +160,7 @@ function App() {
                 <ProjectZone 
                   project={project}
                   isEmpty={!project}
-                  slotId={slot.id}
+                  slot={slot}
                   onSelect={() => handleSlotClick(slot.id, project)}
                   onDeskClick={(deskIndex) => project && handleDeskClick(project.name, deskIndex)}
                   onAgentClick={handleAgentClick}
@@ -154,7 +168,11 @@ function App() {
                   onDissolve={() => project && handleDissolveProject(project.name)}
                   onSendMessage={handleSendMessage}
                   onBubbleClick={handleBubbleClick}
-                  onProjectClick={() => project && setSelectedProjectForChanges(project.name)}
+                  onProjectClick={() => {
+                    if (project) {
+                      setSelectedProjectForChanges(prev => prev === project.name ? null : project.name);
+                    }
+                  }}
                   isSelectedForChanges={selectedProjectForChanges === project?.name}
                   agents={projectAgents}
                   desks={slot.desks}

@@ -9,7 +9,7 @@ interface WorldMapProps {
 export function WorldMap({ children, biome = 'forest' }: WorldMapProps) {
   return (
     <div className={clsx(
-      "w-full h-full overflow-auto p-8 transition-colors duration-700 relative",
+      "w-full h-full overflow-auto px-8 pb-8 pt-24 transition-colors duration-700 relative",
       biome === 'forest' && "bg-[#1e2b1a]", // Deep forest green
       biome === 'desert' && "bg-[#a67c52]", // Sand
       biome === 'tundra' && "bg-[#e5e7eb]"  // Snow/Ice
