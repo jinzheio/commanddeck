@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 
 interface ProjectZoneProps {
   project?: Project;
-  onSelect: () => void;
+  onSelect: (event: React.MouseEvent) => void;
   agents: Agent[];
   desks: DeskPosition[];
   slot: ColonySlot; // Changed from slotId to full slot object
@@ -45,6 +45,9 @@ export function ProjectZone({
   const [isHovered, setIsHovered] = useState(false);
   const [completedAgents, setCompletedAgents] = useState<Set<string>>(new Set());
   const previousStatusRef = useRef<Map<string, string>>(new Map());
+  const tiles = slot.tiles;
+  const rows = tiles.length || 1;
+  const cols = tiles[0]?.length || 1;
   
   // Check if any agent is actively working
   const hasWorkingAgents = agents.some(agent => agent.status === 'working');
@@ -111,6 +114,10 @@ export function ProjectZone({
   const handleProjectClick = (e: React.MouseEvent) => {
     // Only trigger if clicking the main area, not on buttons/agents
     if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.project-area')) {
+      if (isVacant) {
+        onSelect(e);
+        return;
+      }
       if (onProjectClick) {
         onProjectClick();
       }
@@ -120,16 +127,22 @@ export function ProjectZone({
   // Find selected agent and its desk for command popup positioning
   const selectedAgent = selectedAgentId ? agents.find(a => a.id === selectedAgentId) : null;
   const selectedAgentDesk = selectedAgent ? desks[selectedAgent.deskIndex] : null;
+  const selectedDeskPosition = selectedAgentDesk
+    ? {
+        left: ((selectedAgentDesk.col + 0.5) / cols) * 100,
+        top: ((selectedAgentDesk.row + 0.5) / rows) * 100,
+      }
+    : null;
   
   return (
     <div 
-      className="relative h-64" 
-      style={{ 
-        // Boost z-index when this project is selected or has an active command popup
-        // to prevent overlapping by subsequent grid items
-        zIndex: (isSelectedForChanges || selectedAgent) ? 50 : 1 
-      }}
-    >
+        className="relative h-64" 
+        style={{ 
+          // Boost z-index when this project is selected or has an active command popup
+          // to prevent overlapping by subsequent grid items
+          zIndex: (isSelectedForChanges || selectedAgent) ? 50 : 1 
+        }}
+      >
       {/* Top-right icon controls - outside clip-path, positioned on original rectangle */}
       <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 pointer-events-auto">
         {!isVacant && agents.length > 0 && (
@@ -152,13 +165,13 @@ export function ProjectZone({
       </div>
 
       {/* Command Input Popup - positioned in outer container to avoid clipping */}
-      {selectedAgent && selectedAgentDesk && onSendMessage && (
+      {selectedAgent && selectedDeskPosition && onSendMessage && (
         <div 
           className="absolute z-50 w-64"
           style={{
-            left: `${selectedAgentDesk.x}%`,
-            top: `calc(${selectedAgentDesk.y}% - 80px)`,
-            transform: 'translateX(-50%)'
+            left: `${selectedDeskPosition.left}%`,
+            top: `${selectedDeskPosition.top}%`,
+            transform: 'translate(-50%, -120%)'
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -195,189 +208,198 @@ export function ProjectZone({
         onKeyDown={(e) => e.key === 'Enter' && handleProjectClick(e as any)}
         role="button"
         tabIndex={0}
-        style={{
-          clipPath: slot.clipPath,
-          // VERY strong selection glow - triple layer for maximum visibility
-          filter: isSelectedForChanges 
-            ? 'drop-shadow(0 0 25px rgba(79, 209, 197, 1)) drop-shadow(0 0 15px rgba(79, 209, 197, 0.8)) drop-shadow(0 0 8px rgba(79, 209, 197, 0.6))'
-            : hasWorkingAgents && !isVacant
-              ? 'drop-shadow(0 0 15px rgba(79, 209, 197, 0.4))'
-              : 'none',
-          transition: 'filter 0.3s ease'
-        }}
         className={clsx(
-          "h-full flex flex-col cursor-pointer group relative overflow-visible project-area border border-rim-border",
-          isVacant && "bg-black/80 border-rim-border/30 hover:border-rim-accent/50",
-          // Selected state: brighter background, distinct border
-          isSelectedForChanges && !isVacant && "bg-rim-panel/80 border-rim-accent shadow-[inset_0_0_20px_rgba(79,209,197,0.2)]",
-          // Normal state: darker background, muted border
-          !isSelectedForChanges && !isVacant && "bg-rim-panel hover:bg-rim-panel/70 hover:border-rim-muted"
+          "h-full flex flex-col cursor-pointer group relative project-area",
+          isVacant && "opacity-70"
         )}
       >
+        {/* Room Content */}
+        <div className="flex-1 p-2 relative">
+          <div className="absolute inset-2 flex items-center justify-center">
+            <div
+              className={clsx(
+                "relative w-full h-full max-w-full max-h-full overflow-hidden",
+                isSelectedForChanges && "ring-2 ring-rim-accent",
+                hasWorkingAgents && !isVacant && "ring-1 ring-rim-success"
+              )}
+              style={{
+                aspectRatio: `${cols} / ${rows}`,
+              }}
+            >
+              <div
+                className="absolute inset-0 tile-grid pointer-events-none"
+                style={{
+                  gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                  gridTemplateRows: `repeat(${rows}, 1fr)`,
+                }}
+              >
+                {tiles.map((row, rowIndex) =>
+                  row.split("").map((cell, colIndex) => {
+                    let tileClass = "tile-empty";
+                    if (cell === "W") tileClass = "tile-wall";
+                    if (cell === "F") tileClass = "tile-floor";
+                    if (cell === "D") tileClass = "tile-door";
+                    return (
+                      <div
+                        key={`${rowIndex}-${colIndex}`}
+                        className={clsx("tile", tileClass)}
+                      />
+                    );
+                  })
+                )}
+              </div>
 
+              {/* Large Background Project Name */}
+              {!isVacant && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+                  <span className="font-bold text-3xl text-white/10 select-none whitespace-nowrap">
+                    {project!.name}
+                  </span>
+                </div>
+              )}
 
+              {isVacant ? (
+                /* Empty State */
+                <div className="absolute inset-0 flex items-center justify-center text-rim-muted group-hover:text-rim-accent transition-colors">
+                  <div className="text-center">
+                    <div className="text-5xl mb-3 opacity-40">🏢</div>
+                    <p className="text-xs uppercase tracking-wider font-bold">Click to Inhabit</p>
+                    <p className="text-[10px] mt-1 opacity-60">Assign Project</p>
+                  </div>
+                </div>
+              ) : (
+                /* Occupied State: Desks + Agents */
+                <div className="absolute inset-0">
+                  {/* Render Desks */}
+                  {desks.map((desk, idx) => {
+                    // Check if this desk has an agent
+                    const agentAtDesk = agents.find(agent => agent.deskIndex === idx);
+                    const hasAgent = !!agentAtDesk;
+                    const left = ((desk.col + 0.5) / cols) * 100;
+                    const top = ((desk.row + 0.5) / rows) * 100;
+                    
+                    return (
+                      <div
+                        key={`desk-${idx}`}
+                        onClick={(e) => handleDeskClick(e, idx)}
+                        className={clsx(
+                          "absolute w-6 h-6 rounded-sm shadow-md border transition-all cursor-pointer",
+                          hasAgent ? "bg-amber-800 border-amber-900/50" : "bg-amber-700/50 border-amber-800/30 hover:bg-amber-700 hover:border-amber-800"
+                        )}
+                        style={{
+                          left: `${left}%`,
+                          top: `${top}%`,
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                        title={hasAgent ? undefined : "Click to spawn agent"}
+                      >
+                        {/* Desk decoration */}
+                        <div className="absolute inset-1 bg-amber-700/30 rounded-[2px]" />
+                      </div>
+                    );
+                  })}
 
-      
-      {/* Room Content */}
-      <div 
-        className={clsx(
-          "flex-1 p-4 relative",
-          isVacant && "opacity-30"
-        )}
-      >
-        {/* Floor Pattern */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none" 
-             style={{ 
-               backgroundImage: 'linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px)', 
-               backgroundSize: '20px 20px' 
-             }} 
-        />
+                  {/* Render Agents at their designated desks */}
+                  {agents.map((agent) => {
+                    const desk = desks[agent.deskIndex];
+                    if (!desk) return null; // Safety check
+                    const left = ((desk.col + 0.5) / cols) * 100;
+                    const top = ((desk.row + 0.5) / rows) * 100;
+                    
+                    const isWorking = agent.status === 'working';
+                    const isError = agent.status === 'error';
+                    const isHovered = hoveredAgentId === agent.id;
+                    const isSelectedAgent = selectedAgentId === agent.id;
+                    
+                    let borderColor = 'border-rim-muted';
+                    let bgColor = 'bg-rim-panel';
+                    let dotColor = 'bg-rim-muted';
+                    let animation = '';
+                    
+                    if (isWorking) {
+                      borderColor = 'border-rim-success';
+                      bgColor = 'bg-rim-accent';
+                      dotColor = 'bg-rim-success';
+                      animation = 'animate-bounce-small';
+                    } else if (isError) {
+                      borderColor = 'border-rim-error';
+                      bgColor = 'bg-rim-error';
+                      dotColor = 'bg-rim-error';
+                    }
 
-        {/* Large Background Project Name */}
-        {!isVacant && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-            <span className="font-bold text-4xl text-white/10 select-none whitespace-nowrap">
-              {project!.name}
-            </span>
-          </div>
-        )}
-        
-        {isVacant ? (
-          /* Empty State */
-          <div className="flex items-center justify-center h-full text-rim-muted group-hover:text-rim-accent transition-colors">
-            <div className="text-center">
-              <div className="text-5xl mb-3 opacity-40">🏢</div>
-              <p className="text-xs uppercase tracking-wider font-bold">Click to Inhabit</p>
-              <p className="text-[10px] mt-1 opacity-60">Assign Project</p>
+                    if (isSelectedAgent) {
+                      borderColor = 'border-rim-accent';
+                      bgColor = 'bg-rim-accent';
+                    }
+                    
+                    return (
+                      <div 
+                        key={agent.id}
+                        className={clsx("absolute z-10 flex flex-col items-center transition-all duration-300 cursor-pointer", animation)}
+                        style={{
+                          left: `${left}%`,
+                          top: `${top}%`,
+                          transform: 'translate(-50%, -50%)',
+                          animationDelay: isWorking ? `${Math.random() * 500}ms` : '0ms'
+                        }}
+                        onMouseEnter={() => setHoveredAgentId(agent.id)}
+                        onMouseLeave={() => setHoveredAgentId(null)}
+                        onClick={(e) => handleAgentClick(e, agent.id)}
+                      >
+                        {/* Agent Avatar */}
+                        <div className={clsx(
+                          "w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg border-2 transition-colors duration-300 relative",
+                          borderColor,
+                          bgColor
+                        )}>
+                          {agent.name.charAt(0)}
+                          
+                          {/* X button on hover */}
+                          {isHovered && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleAgentStop(e, agent.id)}
+                              className="absolute -top-1 -right-1 w-4 h-4 bg-rim-error text-white rounded-full flex items-center justify-center text-[10px] hover:scale-110 transition-transform shadow-md z-20"
+                              title="Stop agent"
+                            >
+                              ✕
+                            </button>
+                          )}
+                          
+                          {/* Task Complete Bubble - top right */}
+                          {completedAgents.has(agent.id) && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleBubbleClick(e, agent.id)}
+                              className="absolute -top-2 -right-2 w-5 h-5 bg-rim-success text-white rounded-full flex items-center justify-center text-xs hover:scale-110 transition-transform shadow-lg z-20 animate-bounce"
+                              title="Task completed! Click to view output"
+                            >
+                              ✓
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Status Indicator */}
+                        <div className={clsx(
+                          "w-1.5 h-1.5 rounded-full mt-0.5 transition-colors duration-300", 
+                          dotColor,
+                          isWorking && "animate-pulse"
+                        )} />
+
+                        {/* Selection ring */}
+                        {isSelectedAgent && (
+                          <div className="absolute inset-0 rounded-full border-2 border-rim-accent animate-ping opacity-75" />
+                        )}
+
+                        {/* Command popup removed from here - rendered in outer container */}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
-        ) : (
-          /* Occupied State: Desks + Agents */
-          <div className="relative h-full">
-            {/* Render Desks */}
-            {desks.map((desk, idx) => {
-              // Check if this desk has an agent
-              const agentAtDesk = agents.find(agent => agent.deskIndex === idx);
-              const hasAgent = !!agentAtDesk;
-              
-              return (
-                <div
-                  key={`desk-${idx}`}
-                  onClick={(e) => handleDeskClick(e, idx)}
-                  className={clsx(
-                    "absolute w-6 h-6 rounded-sm shadow-md border transition-all cursor-pointer",
-                    hasAgent ? "bg-amber-800 border-amber-900/50" : "bg-amber-700/50 border-amber-800/30 hover:bg-amber-700 hover:border-amber-800"
-                  )}
-                  style={{
-                    left: `${desk.x}%`,
-                    top: `${desk.y}%`,
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                  title={hasAgent ? undefined : "Click to spawn agent"}
-                >
-                  {/* Desk decoration */}
-                  <div className="absolute inset-1 bg-amber-700/30 rounded-[2px]" />
-                </div>
-              );
-            })}
-
-            {/* Render Agents at their designated desks */}
-            {agents.map((agent) => {
-              const desk = desks[agent.deskIndex];
-              if (!desk) return null; // Safety check
-              
-              const isWorking = agent.status === 'working';
-              const isError = agent.status === 'error';
-              const isHovered = hoveredAgentId === agent.id;
-              const isSelectedAgent = selectedAgentId === agent.id;
-              
-              let borderColor = 'border-rim-muted';
-              let bgColor = 'bg-rim-panel';
-              let dotColor = 'bg-rim-muted';
-              let animation = '';
-              
-              if (isWorking) {
-                borderColor = 'border-rim-success';
-                bgColor = 'bg-rim-accent';
-                dotColor = 'bg-rim-success';
-                animation = 'animate-bounce-small';
-              } else if (isError) {
-                borderColor = 'border-rim-error';
-                bgColor = 'bg-rim-error';
-                dotColor = 'bg-rim-error';
-              }
-
-              if (isSelectedAgent) {
-                borderColor = 'border-rim-accent';
-                bgColor = 'bg-rim-accent';
-              }
-              
-              return (
-                <div 
-                  key={agent.id}
-                  className={clsx("absolute z-10 flex flex-col items-center transition-all duration-300 cursor-pointer", animation)}
-                  style={{
-                    left: `${desk.x}%`,
-                    top: `${desk.y}%`,
-                    transform: 'translate(-50%, -50%)',
-                    animationDelay: isWorking ? `${Math.random() * 500}ms` : '0ms'
-                  }}
-                  onMouseEnter={() => setHoveredAgentId(agent.id)}
-                  onMouseLeave={() => setHoveredAgentId(null)}
-                  onClick={(e) => handleAgentClick(e, agent.id)}
-                >
-                  {/* Agent Avatar */}
-                  <div className={clsx(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg border-2 transition-colors duration-300 relative",
-                    borderColor,
-                    bgColor
-                  )}>
-                    {agent.name.charAt(0)}
-                    
-                    {/* X button on hover */}
-                    {isHovered && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleAgentStop(e, agent.id)}
-                        className="absolute -top-1 -right-1 w-4 h-4 bg-rim-error text-white rounded-full flex items-center justify-center text-[10px] hover:scale-110 transition-transform shadow-md z-20"
-                        title="Stop agent"
-                      >
-                        ✕
-                      </button>
-                    )}
-                    
-                    {/* Task Complete Bubble - top right */}
-                    {completedAgents.has(agent.id) && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleBubbleClick(e, agent.id)}
-                        className="absolute -top-2 -right-2 w-5 h-5 bg-rim-success text-white rounded-full flex items-center justify-center text-xs hover:scale-110 transition-transform shadow-lg z-20 animate-bounce"
-                        title="Task completed! Click to view output"
-                      >
-                        ✓
-                      </button>
-                    )}
-                  </div>
-                  
-                  {/* Status Indicator */}
-                  <div className={clsx(
-                    "w-1.5 h-1.5 rounded-full mt-0.5 transition-colors duration-300", 
-                    dotColor,
-                    isWorking && "animate-pulse"
-                  )} />
-
-                  {/* Selection ring */}
-                  {isSelectedAgent && (
-                    <div className="absolute inset-0 rounded-full border-2 border-rim-accent animate-ping opacity-75" />
-                  )}
-
-                  {/* Command popup removed from here - rendered in outer container */}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+        </div>
       </div>
     </div>
   );

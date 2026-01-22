@@ -1,7 +1,7 @@
 // Colony layout configuration - 10 fixed rooms with unique shapes
 export interface DeskPosition {
-  x: number; // percentage
-  y: number; // percentage
+  col: number;
+  row: number;
 }
 
 export interface ColonySlot {
@@ -10,6 +10,7 @@ export interface ColonySlot {
   type: 'hub' | 'office' | 'lab' | 'storage' | 'server';
   shape: string; // Shape name for visual reference
   clipPath: string; // CSS clip-path polygon
+  tiles: string[];
   desks: DeskPosition[];
 }
 
@@ -17,16 +18,30 @@ export const COLONY_SLOTS: ColonySlot[] = [
   // Slot 0: Hub - Hexagon (2x2 central)
   {
     id: 0,
-    gridClass: "col-span-2 row-span-2",
+    gridClass: "col-span-2 row-span-1",
     type: 'hub',
     shape: 'hexagon',
     clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
+    tiles: [
+      "WWWWWWWWWWWW......",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WWWWWWWWDWWWWWWWWW",
+    ],
     desks: [
-      { x: 50, y: 25 },  // Top center
-      { x: 75, y: 40 },  // Right top
-      { x: 75, y: 60 },  // Right bottom
-      { x: 25, y: 60 },  // Left bottom
-      { x: 25, y: 40 },  // Left top
+      { col: 5, row: 3 },
+      { col: 9, row: 3 },
+      { col: 13, row: 3 },
+      { col: 5, row: 7 },
+      { col: 13, row: 7 },
     ]
   },
   
@@ -37,12 +52,22 @@ export const COLONY_SLOTS: ColonySlot[] = [
     type: 'office',
     shape: 'rounded-rect',
     clipPath: 'polygon(0% 15%, 15% 0%, 85% 0%, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0% 85%)',
+    tiles: [
+      "WWWWWWWWWWWW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WWWWWDWWWWWW",
+    ],
     desks: [
-      { x: 25, y: 30 },
-      { x: 75, y: 30 },
-      { x: 25, y: 70 },
-      { x: 75, y: 70 },
-      { x: 50, y: 50 },
+      { col: 3, row: 2 },
+      { col: 8, row: 2 },
+      { col: 3, row: 5 },
+      { col: 8, row: 5 },
+      { col: 6, row: 4 },
     ]
   },
   
@@ -53,12 +78,22 @@ export const COLONY_SLOTS: ColonySlot[] = [
     type: 'lab',
     shape: 'pentagon',
     clipPath: 'polygon(50% 0%, 100% 35%, 85% 100%, 15% 100%, 0% 35%)',
+    tiles: [
+      "WWWWWWWWWWWWWWWWWW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WWWWWWWWDWWWWWWWWW",
+    ],
     desks: [
-      { x: 20, y: 50 },
-      { x: 35, y: 50 },
-      { x: 50, y: 50 },
-      { x: 65, y: 50 },
-      { x: 80, y: 50 },
+      { col: 4, row: 3 },
+      { col: 7, row: 3 },
+      { col: 10, row: 3 },
+      { col: 13, row: 3 },
+      { col: 8, row: 5 },
     ]
   },
   
@@ -69,12 +104,28 @@ export const COLONY_SLOTS: ColonySlot[] = [
     type: 'server',
     shape: 'octagon',
     clipPath: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
+    tiles: [
+      "WWWWWWWWWW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WWWWDWWWWW",
+    ],
     desks: [
-      { x: 35, y: 25 },
-      { x: 65, y: 25 },
-      { x: 35, y: 50 },
-      { x: 65, y: 50 },
-      { x: 50, y: 75 },
+      { col: 3, row: 3 },
+      { col: 6, row: 3 },
+      { col: 3, row: 7 },
+      { col: 6, row: 7 },
+      { col: 4, row: 10 },
     ]
   },
   
@@ -85,12 +136,22 @@ export const COLONY_SLOTS: ColonySlot[] = [
     type: 'storage',
     shape: 'l-shape',
     clipPath: 'polygon(0% 0%, 65% 0%, 65% 35%, 100% 35%, 100% 100%, 0% 100%)',
+    tiles: [
+      "WWWWWWWWWWWW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WWWWWDWWWWWW",
+    ],
     desks: [
-      { x: 30, y: 20 },  // Top horizontal part
-      { x: 80, y: 60 },  // Bottom vertical part (right)
-      { x: 30, y: 70 },  // Bottom left
-      { x: 50, y: 70 },  // Bottom center
-      { x: 35, y: 45 },  // Center left
+      { col: 3, row: 2 },
+      { col: 8, row: 3 },
+      { col: 3, row: 5 },
+      { col: 6, row: 5 },
+      { col: 4, row: 4 },
     ]
   },
   
@@ -101,12 +162,22 @@ export const COLONY_SLOTS: ColonySlot[] = [
     type: 'office',
     shape: 'diamond',
     clipPath: 'polygon(50% 5%, 95% 50%, 50% 95%, 5% 50%)',
+    tiles: [
+      "WWWWWWWWWW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WWWWDWWWWW",
+    ],
     desks: [
-      { x: 50, y: 30 },  // Top
-      { x: 70, y: 50 },  // Right
-      { x: 50, y: 70 },  // Bottom
-      { x: 30, y: 50 },  // Left
-      { x: 50, y: 50 },  // Center
+      { col: 3, row: 2 },
+      { col: 6, row: 2 },
+      { col: 3, row: 5 },
+      { col: 6, row: 5 },
+      { col: 4, row: 4 },
     ]
   },
   
@@ -117,12 +188,22 @@ export const COLONY_SLOTS: ColonySlot[] = [
     type: 'lab',
     shape: 'trapezoid',
     clipPath: 'polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)',
+    tiles: [
+      "WWWWWWWWWWWWWWWWWW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WFFFFFFFFFFFFFFFFW",
+      "WWWWWWWWDWWWWWWWWW",
+    ],
     desks: [
-      { x: 25, y: 40 },
-      { x: 40, y: 50 },
-      { x: 50, y: 55 },
-      { x: 60, y: 50 },
-      { x: 75, y: 40 },
+      { col: 4, row: 3 },
+      { col: 7, row: 3 },
+      { col: 10, row: 3 },
+      { col: 13, row: 3 },
+      { col: 9, row: 5 },
     ]
   },
   
@@ -133,12 +214,22 @@ export const COLONY_SLOTS: ColonySlot[] = [
     type: 'office',
     shape: 'rounded-square',
     clipPath: 'polygon(0% 20%, 20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%)',
+    tiles: [
+      "WWWWWWWWWW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WWWWDWWWWW",
+    ],
     desks: [
-      { x: 30, y: 30 },
-      { x: 70, y: 30 },
-      { x: 30, y: 70 },
-      { x: 70, y: 70 },
-      { x: 50, y: 50 },
+      { col: 3, row: 2 },
+      { col: 6, row: 2 },
+      { col: 3, row: 5 },
+      { col: 6, row: 5 },
+      { col: 4, row: 4 },
     ]
   },
   
@@ -149,12 +240,28 @@ export const COLONY_SLOTS: ColonySlot[] = [
     type: 'server',
     shape: 'chevron',
     clipPath: 'polygon(50% 0%, 100% 20%, 100% 80%, 50% 100%, 0% 80%, 0% 20%)',
+    tiles: [
+      "WWWWWWWWWW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WFFFFFFFFW",
+      "WWWWDWWWWW",
+    ],
     desks: [
-      { x: 50, y: 25 },
-      { x: 35, y: 40 },
-      { x: 65, y: 40 },
-      { x: 35, y: 60 },
-      { x: 65, y: 60 },
+      { col: 3, row: 3 },
+      { col: 6, row: 3 },
+      { col: 3, row: 7 },
+      { col: 6, row: 7 },
+      { col: 4, row: 10 },
     ]
   },
   
@@ -165,12 +272,22 @@ export const COLONY_SLOTS: ColonySlot[] = [
     type: 'office',
     shape: 'pentagon-small',
     clipPath: 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)',
+    tiles: [
+      "WWWWWWWWWWWW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WFFFFFFFFFFW",
+      "WWWWWDWWWWWW",
+    ],
     desks: [
-      { x: 50, y: 35 },  // Center-top (avoid sharp top)
-      { x: 70, y: 55 },
-      { x: 50, y: 70 },
-      { x: 30, y: 55 },
-      { x: 50, y: 50 },
+      { col: 3, row: 2 },
+      { col: 8, row: 2 },
+      { col: 3, row: 5 },
+      { col: 8, row: 5 },
+      { col: 6, row: 4 },
     ]
   },
 ];
