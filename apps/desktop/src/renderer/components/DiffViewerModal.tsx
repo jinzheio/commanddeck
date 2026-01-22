@@ -4,6 +4,7 @@ import ReactDiffViewer from 'react-diff-viewer-continued';
 interface DiffViewerModalProps {
   projectName: string | null;
   filePath: string | null;
+  fileStatus: 'added' | 'modified' | 'deleted' | null;
   onClose: () => void;
   onApprove: (filePath: string) => void;
   onReject: (filePath: string) => void;
@@ -12,6 +13,7 @@ interface DiffViewerModalProps {
 export function DiffViewerModal({
   projectName,
   filePath,
+  fileStatus,
   onClose,
   onApprove,
   onReject,
@@ -28,7 +30,7 @@ export function DiffViewerModal({
 
     setLoading(true);
     window.commanddeck
-      .getGitDiff(projectName, filePath)
+      .getGitDiff(projectName, filePath, fileStatus || undefined)
       .then((result) => {
         if (result.ok) {
           setOldContent(result.oldContent || '');

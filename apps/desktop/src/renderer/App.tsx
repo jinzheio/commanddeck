@@ -28,6 +28,7 @@ function App() {
   const [modalAgentId, setModalAgentId] = useState<string | null>(null);
   const [selectedProjectForChanges, setSelectedProjectForChanges] = useState<string | null>(null);
   const [diffFilePath, setDiffFilePath] = useState<string | null>(null);
+  const [diffFileStatus, setDiffFileStatus] = useState<'added' | 'modified' | 'deleted' | null>(null);
 
   // Git changes for selected project
   const { changes, fetchChanges, approveChange, rejectChange, approveAll, rejectAll } = useGitChanges(selectedProjectForChanges);
@@ -113,18 +114,21 @@ function App() {
   const getProjectAgents = (projectName: string) => 
     allAgents.filter(a => a.project === projectName);
 
-  const handleViewDiff = (filePath: string) => {
+  const handleViewDiff = (filePath: string, status: 'added' | 'modified' | 'deleted') => {
     setDiffFilePath(filePath);
+    setDiffFileStatus(status);
   };
 
   const handleApprove = async (filePath: string) => {
     await approveChange(filePath);
     setDiffFilePath(null);
+    setDiffFileStatus(null);
   };
 
   const handleReject = async (filePath: string) => {
     await rejectChange(filePath);
     setDiffFilePath(null);
+    setDiffFileStatus(null);
   };
 
   const mainRef = useRef<HTMLDivElement | null>(null);
@@ -298,9 +302,10 @@ function App() {
       <DiffViewerModal
         projectName={selectedProjectForChanges}
         filePath={diffFilePath}
-        onClose={() => setDiffFilePath(null)}
+        onClose={() => { setDiffFilePath(null); setDiffFileStatus(null); }}
         onApprove={handleApprove}
         onReject={handleReject}
+        fileStatus={diffFileStatus}
       />
     </div>
   );

@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld("commanddeck", {
   getAgentLogs: (agentId) => ipcRenderer.invoke("agents:logs", agentId),
   // Git integration
   getGitChanges: (projectName) => ipcRenderer.invoke("git:getChanges", projectName),
-  getGitDiff: (projectName, filePath) => ipcRenderer.invoke("git:getDiff", { projectName, filePath }),
+  getGitDiff: (projectName, filePath, status) => ipcRenderer.invoke("git:getDiff", { projectName, filePath, status }),
   approveGitChange: (projectName, filePath) => ipcRenderer.invoke("git:approveChange", { projectName, filePath }),
   rejectGitChange: (projectName, filePath) => ipcRenderer.invoke("git:rejectChange", { projectName, filePath }),
 });

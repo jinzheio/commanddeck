@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 const pty = require("node-pty");
-const { execSync } = require("child_process");
+const { execSync, execFileSync } = require("child_process");
 
 const PROJECTS_DIR = path.join(os.homedir(), "Projects");
 const CONFIG_DIR = path.join(os.homedir(), ".commanddeck");
@@ -469,12 +469,19 @@ function getGitChanges(projectName) {
     for (const line of lines) {
       const status = line.substring(0, 2);
       const filePath = line.substring(3);
+      const isUntracked = status === '??';
+      const hasUnstaged = !isUntracked && status[1] !== ' ';
+      const isStagedOnly = !isUntracked && status[0] !== ' ' && status[1] === ' ';
+
+      if (isStagedOnly) {
+        continue;
+      }
       
       // M = modified, A = added, D = deleted, ?? = untracked
-      if (status.includes('M') || status.includes('A') || status.includes('D') || status === '??') {
+      if (hasUnstaged || isUntracked || status.includes('M') || status.includes('A') || status.includes('D')) {
         // Determine the actual status
         let fileStatus = 'modified';
-        if (status === '??') {
+        if (isUntracked) {
           fileStatus = 'added'; // Treat untracked as "added"
         } else if (status.includes('A')) {
           fileStatus = 'added';
@@ -528,7 +535,7 @@ function getGitChanges(projectName) {
 }
 
 // Get diff for a specific file
-function getGitDiff(projectName, filePath) {
+function getGitDiff(projectName, filePath, status) {
   const projectPath = resolveProjectPath(projectName);
   
   if (!fs.existsSync(projectPath)) {
@@ -541,23 +548,49 @@ function getGitDiff(projectName, filePath) {
   }
   
   try {
+    let existsInHead = status !== 'added';
+    if (status === undefined) {
+      existsInHead = true;
+      try {
+        execSync(`git cat-file -e HEAD:"${filePath}"`, {
+          cwd: projectPath,
+          encoding: 'utf-8',
+          stdio: 'ignore'
+        });
+      } catch {
+        existsInHead = false;
+      }
+    }
+
     // Get the unified diff
-    const diff = execSync(`git diff HEAD -- "${filePath}"`, {
-      cwd: projectPath,
-      encoding: 'utf-8'
-    });
+    let diff = '';
+    if (!existsInHead) {
+      try {
+        diff = execFileSync('git', ['diff', '--no-index', '/dev/null', filePath], {
+          cwd: projectPath,
+          encoding: 'utf-8'
+        });
+      } catch (err) {
+        diff = err.stdout ? err.stdout.toString() : '';
+      }
+    } else {
+      try {
+        diff = execSync(`git diff HEAD -- "${filePath}"`, {
+          cwd: projectPath,
+          encoding: 'utf-8'
+        });
+      } catch (err) {
+        diff = err.stdout ? err.stdout.toString() : '';
+      }
+    }
     
     // Get old content (HEAD version)
-    let oldContent = '';
-    try {
-      oldContent = execSync(`git show HEAD:"${filePath}"`, {
-        cwd: projectPath,
-        encoding: 'utf-8'
-      });
-    } catch {
-      // File might be new
-      oldContent = '';
-    }
+    const oldContent = existsInHead
+      ? execSync(`git show HEAD:"${filePath}"`, {
+          cwd: projectPath,
+          encoding: 'utf-8'
+        })
+      : '';
     
     // Get new content (working directory)
     const newContent = fs.readFileSync(fullFilePath, 'utf-8');
@@ -584,7 +617,7 @@ function approveGitChange(projectName, filePath) {
   }
   
   try {
-    execSync(`git add "${filePath}"`, {
+    execSync(`git add -A -- "${filePath}"`, {
       cwd: projectPath,
       encoding: 'utf-8'
     });
@@ -606,12 +639,28 @@ function rejectGitChange(projectName, filePath) {
   }
   
   try {
-    execSync(`git restore "${filePath}"`, {
+    const untrackedOutput = execSync(`git ls-files --others --exclude-standard -- "${filePath}"`, {
       cwd: projectPath,
       encoding: 'utf-8'
-    });
-    
-    console.log(`[Git] Rejected change: ${filePath}`);
+    }).trim();
+    const isUntracked = untrackedOutput.length > 0;
+    const fullPath = path.join(projectPath, filePath);
+    const isDirectory = fs.existsSync(fullPath) && fs.lstatSync(fullPath).isDirectory();
+
+    if (isUntracked) {
+      const cleanFlags = isDirectory ? '-f -d' : '-f';
+      execSync(`git clean ${cleanFlags} -- "${filePath}"`, {
+        cwd: projectPath,
+        encoding: 'utf-8'
+      });
+      console.log(`[Git] Rejected untracked change: ${filePath}`);
+    } else {
+      execSync(`git restore -- "${filePath}"`, {
+        cwd: projectPath,
+        encoding: 'utf-8'
+      });
+      console.log(`[Git] Rejected change: ${filePath}`);
+    }
     return { ok: true };
   } catch (err) {
     console.error('[Git] Failed to reject change:', err.message);
@@ -621,7 +670,7 @@ function rejectGitChange(projectName, filePath) {
 
 // Git IPC handlers
 ipcMain.handle("git:getChanges", (_event, projectName) => getGitChanges(projectName));
-ipcMain.handle("git:getDiff", (_event, { projectName, filePath }) => getGitDiff(projectName, filePath));
+ipcMain.handle("git:getDiff", (_event, { projectName, filePath, status }) => getGitDiff(projectName, filePath, status));
 ipcMain.handle("git:approveChange", (_event, { projectName, filePath }) => approveGitChange(projectName, filePath));
 ipcMain.handle("git:rejectChange", (_event, { projectName, filePath }) => rejectGitChange(projectName, filePath));
 

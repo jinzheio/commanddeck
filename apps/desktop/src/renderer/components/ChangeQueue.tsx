@@ -4,7 +4,7 @@ import type { GitChange } from '../hooks/useGitChanges';
 interface ChangeQueueProps {
   projectName: string;
   changes: GitChange[];
-  onViewDiff: (filePath: string) => void;
+  onViewDiff: (filePath: string, status: GitChange['status']) => void;
   onApproveAll: () => void;
   onRejectAll: () => void;
   onClose: () => void;
@@ -60,7 +60,7 @@ export function ChangeQueue({
         {changes.map((change) => (
           <div
             key={change.file}
-            onClick={() => onViewDiff(change.file)}
+            onClick={() => onViewDiff(change.file, change.status)}
             className="flex items-center justify-between px-4 py-2 hover:bg-rim-bg cursor-pointer border-b border-rim-border/50 transition-colors"
           >
             <div className="flex items-center gap-3 flex-1">
