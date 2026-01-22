@@ -3,6 +3,7 @@ import type { Project } from '../../stores/projectStore';
 import type { Agent } from '../../stores/agentStore';
 import type { DeskPosition, ColonySlot } from '../../config/colony';
 import { useState, useEffect, useRef } from 'react';
+import { useAnalytics } from '../../hooks/useAnalytics';
 
 interface ProjectZoneProps {
   project?: Project;
@@ -48,6 +49,12 @@ export function ProjectZone({
   const tiles = slot.tiles;
   const rows = tiles.length || 1;
   const cols = tiles[0]?.length || 1;
+  const analytics = useAnalytics(project ?? null, 24);
+  const latestMetrics = analytics.rows[analytics.rows.length - 1];
+  const cacheHit =
+    latestMetrics?.cache_hit_ratio !== null && latestMetrics?.cache_hit_ratio !== undefined
+      ? Math.round(latestMetrics.cache_hit_ratio * 100)
+      : null;
   
   // Check if any agent is actively working
   const hasWorkingAgents = agents.some(agent => agent.status === 'working');
@@ -135,13 +142,15 @@ export function ProjectZone({
     : null;
   
   return (
-    <div 
+      <div 
         className="relative h-64" 
         style={{ 
           // Boost z-index when this project is selected or has an active command popup
           // to prevent overlapping by subsequent grid items
           zIndex: (isSelectedForChanges || selectedAgent) ? 50 : 1 
         }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
       {/* Top-right icon controls - outside clip-path, positioned on original rectangle */}
       <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 pointer-events-auto">
@@ -203,8 +212,6 @@ export function ProjectZone({
       {/* Main shaped panel */}
       <div 
         onClick={handleProjectClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
         onKeyDown={(e) => e.key === 'Enter' && handleProjectClick(e as any)}
         role="button"
         tabIndex={0}
@@ -250,13 +257,26 @@ export function ProjectZone({
               </div>
 
               {/* Large Background Project Name */}
-              {!isVacant && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-                  <span className="font-bold text-3xl text-white/10 select-none whitespace-nowrap">
-                    {project!.name}
-                  </span>
+          {!isVacant && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+              <span className="font-bold text-3xl text-white/10 select-none whitespace-nowrap">
+                {project!.name}
+              </span>
+            </div>
+          )}
+
+          {!isVacant && (
+            <div className="absolute top-2 left-2 z-20">
+              <div className="bg-black/50 border border-rim-border/70 text-[10px] uppercase tracking-[0.12em] text-rim-muted px-2 py-1">
+                <div className="flex items-center gap-2 text-rim-text/80">
+                  <span>R {latestMetrics?.requests ?? '--'}</span>
+                  <span>H {cacheHit !== null ? `${cacheHit}%` : '--'}</span>
+                  <span className="text-rim-warning">4 {latestMetrics?.status_4xx ?? '--'}</span>
+                  <span className="text-rim-error">5 {latestMetrics?.status_5xx ?? '--'}</span>
                 </div>
-              )}
+              </div>
+            </div>
+          )}
 
               {isVacant ? (
                 /* Empty State */

@@ -61,7 +61,7 @@ export function TrafficPanel({
   const polyline = sparkline(values);
 
   return (
-    <div className="absolute top-16 right-6 z-30 w-80 bg-rim-panel border border-rim-border shadow-xl rounded">
+    <div className="absolute top-16 right-6 z-30 w-80 bg-rim-panel/10 border border-rim-border shadow-xl rounded backdrop-blur-sm">
       <div className="panel-header">
         <span>Traffic</span>
         <div className="flex items-center gap-2">
