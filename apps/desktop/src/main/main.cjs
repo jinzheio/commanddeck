@@ -51,6 +51,25 @@ function saveConfig(config) {
 
 function listProjects() {
   const config = loadConfig();
+  let changed = false;
+  const used = new Set();
+
+  config.projects.forEach((project, index) => {
+    let slotId = Number.isInteger(project.slotId) ? project.slotId : index;
+    while (used.has(slotId)) {
+      slotId += 1;
+    }
+    if (project.slotId !== slotId) {
+      project.slotId = slotId;
+      changed = true;
+    }
+    used.add(slotId);
+  });
+
+  if (changed) {
+    saveConfig(config);
+  }
+
   return config.projects;
 }
 
@@ -88,12 +107,27 @@ function isGitRepo(projectPath) {
   }
 }
 
-function addProject(name) {
-  const trimmed = name.trim();
+function getNextAvailableSlotId(config) {
+  const used = new Set(
+    config.projects
+      .map((project) => project.slotId)
+      .filter((slotId) => Number.isInteger(slotId))
+  );
+  let slotId = 0;
+  while (used.has(slotId)) {
+    slotId += 1;
+  }
+  return slotId;
+}
+
+function addProject(payload) {
+  const input = typeof payload === 'string' ? { name: payload } : (payload || {});
+  const trimmed = String(input.name || '').trim();
   if (!trimmed) {
     return { ok: false, reason: "empty" };
   }
   const config = loadConfig();
+  const slotId = Number.isInteger(input.slotId) ? input.slotId : getNextAvailableSlotId(config);
   const existing = config.projects.find((project) => project.name === trimmed);
   if (existing) {
     return { ok: true, project: existing };
@@ -109,28 +143,30 @@ function addProject(name) {
       console.error('[Git] Failed to init repo:', err.message);
     }
   }
-  const project = { name: trimmed, path: projectPath, domain: null };
+  const project = { name: trimmed, path: projectPath, domain: null, slotId };
   config.projects.push(project);
   saveConfig(config);
   return { ok: true, project };
 }
 
-function createProject(name) {
-  const trimmed = name.trim();
+function createProject(payload) {
+  const input = typeof payload === 'string' ? { name: payload } : (payload || {});
+  const trimmed = String(input.name || '').trim();
+  const config = loadConfig();
+  const slotId = Number.isInteger(input.slotId) ? input.slotId : getNextAvailableSlotId(config);
   const projectPath = resolveProjectPath(trimmed);
   const existed = fs.existsSync(projectPath);
   if (!existed) {
     fs.mkdirSync(projectPath, { recursive: true });
   }
-  const config = loadConfig();
   const existing = config.projects.find((project) => project.name === trimmed);
   if (!existing) {
-    config.projects.push({ name: trimmed, path: projectPath });
+    config.projects.push({ name: trimmed, path: projectPath, slotId });
     saveConfig(config);
   }
   const result = {
     ok: true,
-    project: { name: trimmed, path: projectPath, domain: null },
+    project: { name: trimmed, path: projectPath, domain: null, slotId },
     gitInit: false,
     repoCreated: false,
     warnings: []

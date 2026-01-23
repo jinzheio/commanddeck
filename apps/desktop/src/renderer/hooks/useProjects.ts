@@ -21,9 +21,9 @@ export function useProjects() {
     }
   }, [setProjects, selectedProject, selectProject]);
 
-  const addProject = async (name: string) => {
+  const addProject = async (name: string, slotId?: number) => {
     try {
-      const res = await window.commanddeck.addProject(name);
+      const res = await window.commanddeck.addProject({ name, slotId });
       if (res.ok) {
         await fetchProjects();
         if (!selectedProject) selectProject(name);
@@ -34,8 +34,8 @@ export function useProjects() {
     }
   };
 
-  const createProject = async (name: string) => {
-      const res = await window.commanddeck.createProject(name);
+  const createProject = async (name: string, slotId?: number) => {
+      const res = await window.commanddeck.createProject({ name, slotId });
       if (res.ok) {
           await fetchProjects();
           selectProject(name);

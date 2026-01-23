@@ -7,8 +7,8 @@ const agentExitHandlers = new WeakMap();
 
 contextBridge.exposeInMainWorld("commanddeck", {
   getProjects: () => ipcRenderer.invoke("projects:list"),
-  addProject: (name) => ipcRenderer.invoke("projects:add", name),
-  createProject: (name) => ipcRenderer.invoke("projects:create", name),
+  addProject: (payload) => ipcRenderer.invoke("projects:add", payload),
+  createProject: (payload) => ipcRenderer.invoke("projects:create", payload),
   removeProject: (name) => ipcRenderer.invoke("projects:remove", name),
   updateProject: (payload) => ipcRenderer.invoke("projects:update", payload),
   dissolveProject: (projectName) => ipcRenderer.invoke("projects:dissolve", projectName),

@@ -53,7 +53,7 @@ function App() {
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
     setIsCreating(true);
-    await createProject(newProjectName);
+    await createProject(newProjectName, selectedSlotId ?? undefined);
     setNewProjectName('');
     setSelectedSlotId(null);
     setInhabitAnchor(null);
@@ -75,7 +75,8 @@ function App() {
   }, []);
 
   const handleSlotClick = (slotId: number, event?: React.MouseEvent) => {
-    if (projects[slotId]) return;
+    const slotProject = projects.find((project) => project.slotId === slotId);
+    if (slotProject) return;
     setSelectedSlotId(slotId);
     if (event && mainRef.current) {
       const rect = mainRef.current.getBoundingClientRect();
@@ -211,7 +212,7 @@ function App() {
       >
         <WorldMap biome="forest">
           {COLONY_SLOTS.map((slot) => {
-            const project = projects[slot.id];
+            const project = projects.find((item) => item.slotId === slot.id);
             const projectAgents = project ? getProjectAgents(project.name) : [];
             
             return (
@@ -249,7 +250,7 @@ function App() {
           })}
         </WorldMap>
 
-        {selectedSlotId !== null && !projects[selectedSlotId] && inhabitAnchor && (
+        {selectedSlotId !== null && !projects.find((project) => project.slotId === selectedSlotId) && inhabitAnchor && (
           <div
             className="absolute z-30 inhabit-popover"
             style={{

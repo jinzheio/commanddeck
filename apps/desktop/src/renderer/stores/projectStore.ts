@@ -4,6 +4,7 @@ export interface Project {
   name: string;
   path?: string;
   domain?: string | null;
+  slotId?: number;
 }
 
 interface ProjectStore {

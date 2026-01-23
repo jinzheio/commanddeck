@@ -1,7 +1,7 @@
 export interface ICommandDeckAPI {
   getProjects: () => Promise<any[]>;
-  createProject: (name: string) => Promise<{ ok: boolean; project?: any; gitInit?: boolean; repoCreated?: boolean; warnings?: string[] }>;
-  addProject: (name: string) => Promise<{ ok: boolean; reason?: string; path?: string }>;
+  createProject: (payload: { name: string; slotId?: number }) => Promise<{ ok: boolean; project?: any; gitInit?: boolean; repoCreated?: boolean; warnings?: string[] }>;
+  addProject: (payload: { name: string; slotId?: number }) => Promise<{ ok: boolean; reason?: string; path?: string }>;
   updateProject: (payload: { name: string; updates: { name?: string; domain?: string | null } }) => Promise<{ ok: boolean; reason?: string; project?: any; renamedFrom?: string }>;
   dissolveProject: (projectName: string) => Promise<{ ok: boolean; stoppedAgents: number }>;
   getAgents: () => Promise<any[]>;
