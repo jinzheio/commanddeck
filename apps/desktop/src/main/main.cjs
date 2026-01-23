@@ -74,6 +74,19 @@ function resolveProjectPath(projectName) {
   return path.join(PROJECTS_DIR, folderName);
 }
 
+function isGitRepo(projectPath) {
+  try {
+    execSync('git rev-parse --is-inside-work-tree', {
+      cwd: projectPath,
+      encoding: 'utf-8',
+      stdio: 'ignore'
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function addProject(name) {
   const trimmed = name.trim();
   if (!trimmed) {
@@ -88,6 +101,13 @@ function addProject(name) {
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "missing", path: projectPath };
   }
+  if (!isGitRepo(projectPath)) {
+    try {
+      execSync('git init', { cwd: projectPath, encoding: 'utf-8' });
+    } catch (err) {
+      console.error('[Git] Failed to init repo:', err.message);
+    }
+  }
   const project = { name: trimmed, path: projectPath, domain: null };
   config.projects.push(project);
   saveConfig(config);
@@ -97,14 +117,48 @@ function addProject(name) {
 function createProject(name) {
   const trimmed = name.trim();
   const projectPath = resolveProjectPath(trimmed);
-  fs.mkdirSync(projectPath, { recursive: true });
+  const existed = fs.existsSync(projectPath);
+  if (!existed) {
+    fs.mkdirSync(projectPath, { recursive: true });
+  }
   const config = loadConfig();
   const existing = config.projects.find((project) => project.name === trimmed);
   if (!existing) {
     config.projects.push({ name: trimmed, path: projectPath });
     saveConfig(config);
   }
-  return { ok: true, project: { name: trimmed, path: projectPath, domain: null } };
+  const result = {
+    ok: true,
+    project: { name: trimmed, path: projectPath, domain: null },
+    gitInit: false,
+    repoCreated: false,
+    warnings: []
+  };
+
+  if (!isGitRepo(projectPath)) {
+    try {
+      execSync('git init', { cwd: projectPath, encoding: 'utf-8' });
+      result.gitInit = true;
+    } catch (err) {
+      console.error('[Git] Failed to init repo:', err.message);
+      result.warnings.push(`git_init_failed: ${err.message}`);
+    }
+  }
+
+  if (!existed) {
+    try {
+      execSync(`gh repo create "${trimmed}" --source . --remote origin --private --confirm`, {
+        cwd: projectPath,
+        encoding: 'utf-8'
+      });
+      result.repoCreated = true;
+    } catch (err) {
+      console.error('[GitHub] Failed to create repo:', err.message);
+      result.warnings.push(`repo_create_failed: ${err.message}`);
+    }
+  }
+
+  return result;
 }
 
 function removeProject(name) {
@@ -499,6 +553,9 @@ function getGitChanges(projectName) {
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "project_not_found" };
   }
+  if (!isGitRepo(projectPath)) {
+    return { ok: false, reason: "not_git_repo" };
+  }
   
   try {
     // Get status of modified files
@@ -585,6 +642,9 @@ function getGitDiff(projectName, filePath, status) {
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "project_not_found" };
   }
+  if (!isGitRepo(projectPath)) {
+    return { ok: false, reason: "not_git_repo" };
+  }
   
   const fullFilePath = path.join(projectPath, filePath);
   if (!fs.existsSync(fullFilePath)) {
@@ -659,6 +719,9 @@ function approveGitChange(projectName, filePath) {
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "project_not_found" };
   }
+  if (!isGitRepo(projectPath)) {
+    return { ok: false, reason: "not_git_repo" };
+  }
   
   try {
     execSync(`git add -A -- "${filePath}"`, {
@@ -680,6 +743,9 @@ function rejectGitChange(projectName, filePath) {
   
   if (!fs.existsSync(projectPath)) {
     return { ok: false, reason: "project_not_found" };
+  }
+  if (!isGitRepo(projectPath)) {
+    return { ok: false, reason: "not_git_repo" };
   }
   
   try {
