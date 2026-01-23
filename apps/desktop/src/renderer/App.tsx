@@ -90,6 +90,16 @@ function App() {
     setSelectedAgentId(prev => prev === agentId ? null : agentId);
   };
 
+  const handleAgentStop = async (payload: { agentId: string }) => {
+    const agent = allAgents.find((item) => item.id === payload.agentId);
+    const agentLabel = agent ? `${agent.name} (${agent.project})` : payload.agentId;
+    const confirmed = window.confirm(`Stop agent ${agentLabel}? Any running task will be interrupted.`);
+    if (!confirmed) {
+      return;
+    }
+    await stopAgent(payload);
+  };
+
   const handleDeskClick = async (projectName: string, deskIndex: number) => {
     console.log(`[App] Spawning agent at desk ${deskIndex} for project: ${projectName}`);
     await startAgent('ws://127.0.0.1:8787/stream', projectName, deskIndex);
@@ -216,7 +226,7 @@ function App() {
                   onSelect={(event) => handleSlotClick(slot.id, event)}
                   onDeskClick={(deskIndex) => project && handleDeskClick(project.name, deskIndex)}
                   onAgentClick={handleAgentClick}
-                  onAgentStop={(payload) => stopAgent(payload)}
+                  onAgentStop={handleAgentStop}
                   onDissolve={() => project && handleDissolveProject(project.name)}
                   onProjectEdit={() => project && setEditingProject(project)}
                   onSendMessage={handleSendMessage}
