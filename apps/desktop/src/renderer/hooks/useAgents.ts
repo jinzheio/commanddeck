@@ -16,18 +16,20 @@ export function useAgents() {
   useEffect(() => {
     fetchAgents();
 
-    // Subscribe to agent list changes
-    window.commanddeck.onAgentsChanged((nextAgents) => {
-        setAgents(nextAgents);
-    });
+    const handleAgentsChanged = (nextAgents: any[]) => {
+      setAgents(nextAgents);
+    };
 
-    // Subscribe to logs
-    window.commanddeck.onAgentLog(({ id, line }) => {
-        addLog(id, line);
-    });
+    const handleAgentLog = ({ id, line }: { id: string; line: string }) => {
+      addLog(id, line);
+    };
+
+    const offAgentsChanged = window.commanddeck.onAgentsChanged(handleAgentsChanged);
+    const offAgentLog = window.commanddeck.onAgentLog(handleAgentLog);
     
     return () => {
-        // Cleanup would go here if API supported it
+      offAgentsChanged?.();
+      offAgentLog?.();
     };
   }, [fetchAgents, setAgents, addLog]);
 
@@ -56,4 +58,3 @@ export function useAgents() {
     fetchAgents
   };
 }
-

@@ -134,8 +134,6 @@ export function TrafficPanel({
                 )}
               </svg>
             </div>
-
-            <div className="text-xs text-rim-muted">Country data disabled.</div>
           </>
         )}
       </div>

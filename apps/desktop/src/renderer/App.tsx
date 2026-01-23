@@ -127,6 +127,10 @@ function App() {
   const handleBubbleClick = (agentId: string) => {
     setModalAgentId(agentId);
   };
+
+  const handleViewLogs = (agentId: string) => {
+    setModalAgentId(agentId);
+  };
   
   // Get agents for each project
   const getProjectAgents = (projectName: string) => 
@@ -217,6 +221,7 @@ function App() {
                   onProjectEdit={() => project && setEditingProject(project)}
                   onSendMessage={handleSendMessage}
                   onBubbleClick={handleBubbleClick}
+                  onViewLogs={handleViewLogs}
                   onProjectClick={() => {
                     if (project) {
                       setSelectedSlotId(null);

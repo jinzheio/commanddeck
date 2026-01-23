@@ -18,6 +18,7 @@ interface ProjectZoneProps {
   onDissolve?: () => void;
   onSendMessage?: (agentId: string, text: string) => void;
   onBubbleClick?: (agentId: string) => void;
+  onViewLogs?: (agentId: string) => void;
   onProjectClick?: () => void;
   onProjectEdit?: () => void;
   isSelectedForChanges?: boolean;
@@ -37,6 +38,7 @@ export function ProjectZone({
   onDissolve,
   onSendMessage,
   onBubbleClick,
+  onViewLogs,
   onProjectClick,
   onProjectEdit,
   isSelectedForChanges,
@@ -108,6 +110,13 @@ export function ProjectZone({
         next.delete(agentId);
         return next;
       });
+    }
+  };
+
+  const handleViewLogs = (e: React.MouseEvent, agentId: string) => {
+    e.stopPropagation();
+    if (onViewLogs) {
+      onViewLogs(agentId);
     }
   };
 
@@ -398,6 +407,18 @@ export function ProjectZone({
                               title="Stop agent"
                             >
                               ✕
+                            </button>
+                          )}
+
+                          {/* Logs button on hover */}
+                          {isHovered && onViewLogs && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleViewLogs(e, agent.id)}
+                              className="absolute -bottom-1 -right-1 w-4 h-4 bg-rim-panel text-white rounded-full flex items-center justify-center text-[10px] hover:scale-110 transition-transform shadow-md z-20 border border-rim-border"
+                              title="View live logs"
+                            >
+                              ≡
                             </button>
                           )}
                           

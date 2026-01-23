@@ -33,7 +33,7 @@ export function AgentOutputModal({ agent, logs, onClose }: AgentOutputModalProps
             </div>
             
             <div>
-              <h2 className="font-bold text-lg">{agent.name} - Task Complete ✓</h2>
+              <h2 className="font-bold text-lg">{agent.name} Output</h2>
               <p className="text-xs text-rim-muted">Project: {agent.project}</p>
             </div>
           </div>

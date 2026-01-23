@@ -76,11 +76,16 @@ export function useProjects() {
   useEffect(() => {
     fetchProjects();
     
+    let offProjectsChanged;
     if (window.commanddeck.onProjectsChanged) {
-        window.commanddeck.onProjectsChanged((newProjects) => {
-            setProjects(newProjects);
-        });
+      offProjectsChanged = window.commanddeck.onProjectsChanged((newProjects) => {
+        setProjects(newProjects);
+      });
     }
+
+    return () => {
+      offProjectsChanged?.();
+    };
   }, []);
 
   return { 
