@@ -14,6 +14,11 @@ export interface ColonySlot {
   desks: DeskPosition[];
 }
 
+const DEFAULT_MAX_AGENTS = 3;
+const envMaxAgents = Number(import.meta.env.VITE_MAX_AGENTS_PER_PROJECT);
+export const MAX_AGENTS_PER_PROJECT =
+  Number.isFinite(envMaxAgents) && envMaxAgents > 0 ? envMaxAgents : DEFAULT_MAX_AGENTS;
+
 export const COLONY_SLOTS: ColonySlot[] = [
   // Slot 0: Hub - Hexagon (2x2 central)
   {

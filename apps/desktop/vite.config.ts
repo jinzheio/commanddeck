@@ -23,4 +23,5 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+  envDir: path.resolve(__dirname),
 });

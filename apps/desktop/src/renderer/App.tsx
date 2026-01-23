@@ -11,7 +11,7 @@ import { ChangeQueue } from './components/ChangeQueue';
 import { DiffViewerModal } from './components/DiffViewerModal';
 import { TrafficPanel } from './components/TrafficPanel';
 import { ProjectSettingsModal } from './components/ProjectSettingsModal';
-import { COLONY_SLOTS } from './config/colony';
+import { COLONY_SLOTS, MAX_AGENTS_PER_PROJECT } from './config/colony';
 import clsx from 'clsx';
 import type { Project } from './stores/projectStore';
 
@@ -214,6 +214,7 @@ function App() {
           {COLONY_SLOTS.map((slot) => {
             const project = projects.find((item) => item.slotId === slot.id);
             const projectAgents = project ? getProjectAgents(project.name) : [];
+            const slotDesks = slot.desks.slice(0, MAX_AGENTS_PER_PROJECT);
             
             return (
               <div 
@@ -242,7 +243,7 @@ function App() {
                   }}
                   isSelectedForChanges={selectedProjectForChanges === project?.name}
                   agents={projectAgents}
-                  desks={slot.desks}
+                  desks={slotDesks}
                   selectedAgentId={selectedAgentId}
                 />
               </div>
