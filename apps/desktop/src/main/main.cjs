@@ -19,6 +19,7 @@ const NAME_POOL = [
 let mainWindow;
 const agents = new Map();
 const agentLogs = new Map();
+const agentLogBuffers = new Map();
 
 function ensureConfigDir() {
   if (!fs.existsSync(CONFIG_DIR)) {
@@ -331,6 +332,7 @@ function startAgent({ projectName, hubUrl, deskIndex }) {
       console.log(`[Agent ${id}] Exit: code=${exitCode}, signal=${signal}`);
       agents.delete(id);
       agentLogs.delete(id);
+      agentLogBuffers.delete(id);
       broadcastAgents();
       notifyAgentExit(id, { reason: "exit" });
     });
@@ -347,6 +349,7 @@ function startAgent({ projectName, hubUrl, deskIndex }) {
     };
     agents.set(id, record);
     agentLogs.set(id, []);
+    agentLogBuffers.set(id, '');
     broadcastAgents();
     
     setTimeout(() => {
@@ -472,25 +475,34 @@ function handleAgentOutput(agentId, data) {
   const agent = agents.get(agentId);
   if (!agent) return;
   
-  const line = data.toString();
-  appendAgentLog(agentId, line);
-  
-  if (line.toLowerCase().includes('error:') || line.toLowerCase().includes('failed:')) {
-    agent.status = 'error';
-    broadcastAgents();
-  }
-  
-  if (agent.isProcessing && line.includes('bash-') && line.includes('$')) {
-    agent.isProcessing = false;
+  const chunk = data.toString();
+  const buffer = agentLogBuffers.get(agentId) || '';
+  const normalized = (buffer + chunk).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalized.split('\n');
+  const nextBuffer = lines.pop() ?? '';
+  agentLogBuffers.set(agentId, nextBuffer);
+
+  for (const line of lines) {
+    if (!line) continue;
+    appendAgentLog(agentId, line);
     
-    if (agent.status !== 'error') {
-      agent.status = 'idle';
+    if (line.toLowerCase().includes('error:') || line.toLowerCase().includes('failed:')) {
+      agent.status = 'error';
+      broadcastAgents();
     }
     
-    if (agent.commandQueue && agent.commandQueue.length > 0) {
-       setTimeout(() => processCommandQueue(agentId), 200);
-    } else {
-       broadcastAgents();
+    if (agent.isProcessing && line.includes('bash-') && line.includes('$')) {
+      agent.isProcessing = false;
+      
+      if (agent.status !== 'error') {
+        agent.status = 'idle';
+      }
+      
+      if (agent.commandQueue && agent.commandQueue.length > 0) {
+         setTimeout(() => processCommandQueue(agentId), 200);
+      } else {
+         broadcastAgents();
+      }
     }
   }
 }
@@ -803,6 +815,7 @@ function killAllAgents() {
   console.log(`[Cleanup] ${killedCount} agent(s) terminated`);
   agents.clear();
   agentLogs.clear();
+  agentLogBuffers.clear();
 }
 
 // Handle app quit
