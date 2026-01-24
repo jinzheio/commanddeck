@@ -115,7 +115,11 @@ function App() {
     }
   };
 
-  const handleSaveProjectSettings = async (updates: { name: string; domain: string | null }) => {
+  const handleSaveProjectSettings = async (updates: {
+    name: string;
+    domain: string | null;
+    icon?: { type: 'emoji'; value: string } | { type: 'image'; value: string } | null;
+  }) => {
     if (!editingProject) return { ok: false, reason: 'no_project' };
     const result = await updateProject(editingProject.name, updates);
     if (result.ok) {

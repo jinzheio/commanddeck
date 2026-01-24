@@ -2,8 +2,13 @@ export interface Project {
   name: string;
   path?: string;
   domain?: string | null;
+  icon?: ProjectIcon | null;
   slotId?: number;
 }
+
+export type ProjectIcon =
+  | { type: 'emoji'; value: string }
+  | { type: 'image'; value: string };
 
 export interface Agent {
   id: string;
@@ -27,7 +32,10 @@ export interface CommandDeckAPI {
   getProjects: () => Promise<Project[]>;
   createProject: (payload: { name: string; slotId?: number }) => Promise<{ ok: boolean; project?: Project; gitInit?: boolean; repoCreated?: boolean; warnings?: string[] }>;
   addProject: (payload: { name: string; slotId?: number }) => Promise<{ ok: boolean; reason?: string; path?: string }>;
-  updateProject: (payload: { name: string; updates: { name?: string; domain?: string | null } }) => Promise<{ ok: boolean; reason?: string; project?: Project; renamedFrom?: string }>;
+  updateProject: (payload: {
+    name: string;
+    updates: { name?: string; domain?: string | null; icon?: ProjectIcon | null };
+  }) => Promise<{ ok: boolean; reason?: string; project?: Project; renamedFrom?: string }>;
   dissolveProject: (projectName: string) => Promise<{ ok: boolean; stoppedAgents: number }>;
   removeProject: (name: string) => Promise<{ ok: boolean }>;
   getAgents: () => Promise<Agent[]>;

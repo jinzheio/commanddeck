@@ -4,8 +4,13 @@ export interface Project {
   name: string;
   path?: string;
   domain?: string | null;
+  icon?: ProjectIcon | null;
   slotId?: number;
 }
+
+export type ProjectIcon =
+  | { type: 'emoji'; value: string }
+  | { type: 'image'; value: string };
 
 interface ProjectStore {
   projects: Project[];

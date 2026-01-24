@@ -29,7 +29,14 @@ function broadcastProjects() {
   }
 }
 
-function handleUpdateProject(payload: { name?: string; updates?: { name?: string; domain?: string | null } }) {
+function handleUpdateProject(payload: {
+  name?: string;
+  updates?: {
+    name?: string;
+    domain?: string | null;
+    icon?: { type: "emoji"; value: string } | { type: "image"; value: string } | null;
+  };
+}) {
   return updateProject(payload?.name || "", payload?.updates || {}, agentsManager?.agents);
 }
 

@@ -8,7 +8,21 @@ export interface ProjectRecord {
   name: string;
   path?: string;
   domain?: string | null;
+  icon?: { type: "emoji"; value: string } | { type: "image"; value: string } | null;
   slotId?: number;
+}
+
+function normalizeIcon(
+  icon: ProjectRecord["icon"] | string | null | undefined
+): ProjectRecord["icon"] | null {
+  if (!icon) return null;
+  if (typeof icon === "string") {
+    return { type: "emoji", value: icon };
+  }
+  if (icon.type === "emoji" || icon.type === "image") {
+    return { type: icon.type, value: String(icon.value || "") };
+  }
+  return null;
 }
 
 export function folderNameFromProject(name: string): string {
@@ -59,6 +73,11 @@ export function listProjects(): ProjectRecord[] {
       project.slotId = slotId;
       changed = true;
     }
+    const nextIcon = normalizeIcon(project.icon ?? null);
+    if (nextIcon !== project.icon) {
+      project.icon = nextIcon;
+      changed = true;
+    }
     used.add(slotId);
   });
 
@@ -92,7 +111,7 @@ export function addProject(payload: { name: string; slotId?: number } | string) 
       console.error("[Git] Failed to init repo:", err.message);
     }
   }
-  const project = { name: trimmed, path: projectPath, domain: null, slotId };
+  const project = { name: trimmed, path: projectPath, domain: null, icon: null, slotId };
   config.projects.push(project);
   saveConfig(config);
   return { ok: true, project };
@@ -110,12 +129,12 @@ export function createProject(payload: { name: string; slotId?: number } | strin
   }
   const existing = config.projects.find((project) => project.name === trimmed);
   if (!existing) {
-    config.projects.push({ name: trimmed, path: projectPath, slotId });
+    config.projects.push({ name: trimmed, path: projectPath, icon: null, slotId });
     saveConfig(config);
   }
   const result = {
     ok: true,
-    project: { name: trimmed, path: projectPath, domain: null, slotId },
+    project: { name: trimmed, path: projectPath, domain: null, icon: null, slotId },
     gitInit: false,
     repoCreated: false,
     warnings: [] as string[],
@@ -155,7 +174,15 @@ export function removeProject(name: string) {
   return { ok: true };
 }
 
-export function updateProject(name: string, updates: { name?: string; domain?: string | null } = {}, agents?: Map<string, any>) {
+export function updateProject(
+  name: string,
+  updates: {
+    name?: string;
+    domain?: string | null;
+    icon?: { type: "emoji"; value: string } | { type: "image"; value: string } | null;
+  } = {},
+  agents?: Map<string, any>
+) {
   const trimmed = name?.trim();
   if (!trimmed) {
     return { ok: false, reason: "empty" };
@@ -177,13 +204,18 @@ export function updateProject(name: string, updates: { name?: string; domain?: s
     }
   }
 
-  const nextDomainRaw = updates.domain !== undefined ? String(updates.domain).trim() : config.projects[index].domain;
-  const nextDomain = nextDomainRaw ? nextDomainRaw : null;
+  const rawDomain = updates.domain !== undefined ? updates.domain : config.projects[index].domain;
+  const nextDomain =
+    rawDomain === null || rawDomain === undefined ? null : String(rawDomain).trim() || null;
+  const nextIcon = normalizeIcon(
+    updates.icon !== undefined ? updates.icon : (config.projects[index].icon ?? null)
+  );
 
   config.projects[index] = {
     ...config.projects[index],
     name: nextNameRaw,
     domain: nextDomain,
+    icon: nextIcon ?? null,
   };
   saveConfig(config);
 

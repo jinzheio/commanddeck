@@ -60,7 +60,10 @@ export function useProjects() {
     }
   };
 
-  const updateProject = async (name: string, updates: { name?: string; domain?: string | null }) => {
+  const updateProject = async (
+    name: string,
+    updates: { name?: string; domain?: string | null; icon?: { type: 'emoji'; value: string } | { type: 'image'; value: string } | null }
+  ) => {
     try {
       const res = await window.commanddeck.updateProject({ name, updates });
       if (res.ok) {

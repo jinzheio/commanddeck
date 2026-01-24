@@ -55,6 +55,8 @@ export function ProjectZone({
   const cols = tiles[0]?.length || 1;
   const analytics = useAnalytics(project ?? null, 24);
   const latestMetrics = analytics.rows[analytics.rows.length - 1];
+  const projectIcon = project?.icon ?? null;
+  const hasProjectIcon = Boolean(projectIcon?.value);
   const cacheHit =
     latestMetrics?.cache_hit_ratio !== null && latestMetrics?.cache_hit_ratio !== undefined
       ? Math.round(latestMetrics.cache_hit_ratio * 100)
@@ -283,14 +285,38 @@ export function ProjectZone({
               {/* Large Background Project Name */}
           {!isVacant && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-              <span className="font-bold text-3xl text-white/10 select-none whitespace-nowrap">
-                {project!.name}
-              </span>
+              <div className="flex items-center gap-3 text-white/12 select-none whitespace-nowrap">
+                {hasProjectIcon && projectIcon?.type === 'emoji' && (
+                  <span className="text-6xl leading-none text-white/10">{projectIcon.value}</span>
+                )}
+                {hasProjectIcon && projectIcon?.type === 'image' && (
+                  <div className="w-16 h-16 opacity-10">
+                    <img
+                      src={projectIcon.value}
+                      alt={`${project?.name || 'Project'} icon`}
+                      className="w-full h-full object-cover rounded"
+                    />
+                  </div>
+                )}
+                <span className="font-bold text-3xl text-white/10">
+                  {project!.name}
+                </span>
+              </div>
             </div>
           )}
 
           {!isVacant && (
-            <div className="absolute top-2 left-2 z-20">
+            <div className="absolute top-2 left-2 z-20 flex items-start gap-2">
+              {hasProjectIcon && (
+                <div className="w-8 h-8 rounded border border-rim-border/70 bg-black/60 flex items-center justify-center overflow-hidden">
+                  {projectIcon?.type === 'emoji' && (
+                    <span className="text-lg">{projectIcon.value}</span>
+                  )}
+                  {projectIcon?.type === 'image' && (
+                    <img src={projectIcon.value} alt={`${project?.name || 'Project'} icon`} className="w-full h-full object-cover" />
+                  )}
+                </div>
+              )}
               <div className="bg-black/50 border border-rim-border/70 text-[10px] uppercase tracking-[0.12em] text-rim-muted px-2 py-1">
                 <div className="flex items-center gap-2 text-rim-text/80">
                   <span>R {latestMetrics?.requests ?? '--'}</span>
