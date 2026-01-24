@@ -167,7 +167,7 @@ export function ProjectSettingsModal({ project, onClose, onSave }: ProjectSettin
                 }}
                 className={`px-2 py-1 text-[11px] border rounded ${iconType === 'emoji' ? 'border-rim-accent text-rim-accent' : 'border-rim-border text-rim-muted'}`}
               >
-                Emoji
+                Letters
               </button>
               <button
                 type="button"
@@ -184,7 +184,7 @@ export function ProjectSettingsModal({ project, onClose, onSave }: ProjectSettin
                   type="text"
                   value={iconEmoji}
                   onChange={(event) => setIconEmoji(event.target.value)}
-                  placeholder="✨"
+                  placeholder="ABC or ✨"
                   className="flex-1 bg-rim-bg border border-rim-border px-3 py-2 text-sm focus:border-rim-accent outline-none"
                 />
               )}
