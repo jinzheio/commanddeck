@@ -1,4 +1,5 @@
 import fs from "fs";
+import { randomUUID } from "crypto";
 import pty from "node-pty";
 
 const NAME_POOL = [
@@ -163,7 +164,7 @@ export function createAgentsManager(
       };
 
       const id = `${projectName}:${agentName}`;
-      const sessionId = require("crypto").randomUUID();
+      const sessionId = randomUUID();
 
       const ptyProcess = pty.spawn("bash", [], {
         name: "xterm-color",
