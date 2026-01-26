@@ -7,7 +7,7 @@ export function useAgents() {
   const fetchAgents = useCallback(async () => {
     try {
       const data = await window.commanddeck.getAgents();
-      setAgents(data);
+      setAgents(data as any);
     } catch (err) {
       console.error("Failed to fetch agents", err);
     }

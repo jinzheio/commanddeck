@@ -1,7 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { upsertAnalytics, upsertCountriesTop3 } from "./store";
+import { upsertAnalytics, getAnalyticsRange } from "./store";
 
 type ProjectConfig = {
   name: string;
@@ -308,74 +308,6 @@ async function fetchHourly(
   return { groups, schema };
 }
 
-async function fetchTopCountries(
-  zoneId: string,
-  start: Date,
-  end: Date,
-  token: string,
-  domain: string
-) {
-  const schema = await getAdaptiveSchemaInfo(token);
-  if (!schema.dimensionField || !schema.requestsField) {
-    console.warn(
-      `[Cloudflare] Adaptive schema missing fields (dimension=${schema.dimensionField ?? "none"}, requests=${schema.requestsField ?? "none"})`
-    );
-    return [];
-  }
-  const query = `
-    query ($zoneTag: String!, $since: DateTime!, $until: DateTime!) {
-      viewer {
-        zones(filter: {zoneTag: $zoneTag}) {
-          httpRequestsAdaptiveGroups(
-            limit: 50
-            filter: {datetime_geq: $since, datetime_lt: $until}
-          ) {
-            dimensions { ${schema.dimensionField} }
-            sum { ${schema.requestsField} }
-          }
-        }
-      }
-    }
-  `;
-
-  const data = await fetchJson(CF_GRAPHQL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      query,
-      variables: { zoneTag: zoneId, since: toIso(start), until: toIso(end) },
-    }),
-  });
-
-  if (process.env.CLOUDFLARE_DEBUG === "1") {
-    console.info(
-      `[Cloudflare] Countries response for ${domain}: ${JSON.stringify(data).slice(0, 2000)}`
-    );
-  }
-
-  if (data?.errors?.length) {
-    const messages = data.errors.map((err: any) => err.message).join("; ");
-    throw new Error(`GraphQL errors: ${messages}`);
-  }
-
-  if (!data?.data?.viewer?.zones?.length) {
-    throw new Error("No zones returned (check token scope/zone access)");
-  }
-
-  const groups: CountryGroup[] =
-    data?.data?.viewer?.zones?.[0]?.httpRequestsAdaptiveGroups ?? [];
-  return groups
-    .map((entry) => ({
-      country: entry.dimensions?.[schema.dimensionField as "clientCountryName"] ?? "Unknown",
-      requests: entry.sum?.[schema.requestsField as keyof CountryGroup["sum"]] ?? 0,
-    }))
-    .sort((a, b) => b.requests - a.requests)
-    .slice(0, 3);
-}
-
 export async function pollCloudflareOnce() {
   const token = process.env.CLOUDFLARE_API_TOKEN;
   if (!token) return;
@@ -384,7 +316,6 @@ export async function pollCloudflareOnce() {
   if (!projects.length) return;
 
   const { start, end } = getHourWindow(24);
-  const lastHourStart = new Date(end.getTime() - 60 * 60 * 1000);
 
   for (const project of projects) {
     const domain = normalizeDomain(project.domain);

@@ -8,6 +8,7 @@ export function useProjects() {
 
   const fetchProjects = useCallback(async () => {
     try {
+      setLoading(true);
       const data = await window.commanddeck.getProjects();
       setProjects(data);
       
@@ -18,6 +19,8 @@ export function useProjects() {
     } catch (err) {
       console.error(err);
       setError('Failed to fetch projects');
+    } finally {
+      setLoading(false);
     }
   }, [setProjects, selectedProject, selectProject]);
 
@@ -79,7 +82,7 @@ export function useProjects() {
   useEffect(() => {
     fetchProjects();
     
-    let offProjectsChanged;
+    let offProjectsChanged: (() => void) | undefined;
     if (window.commanddeck.onProjectsChanged) {
       offProjectsChanged = window.commanddeck.onProjectsChanged((newProjects) => {
         setProjects(newProjects);

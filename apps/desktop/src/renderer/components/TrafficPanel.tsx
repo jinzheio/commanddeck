@@ -21,19 +21,7 @@ function formatPercent(value: number | null) {
   return `${Math.round(value * 100)}%`;
 }
 
-function parseCountries(rows: AnalyticsRow[]) {
-  for (let i = rows.length - 1; i >= 0; i -= 1) {
-    const raw = rows[i].countries_top3;
-    if (!raw) continue;
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
+
 
 function sparkline(values: number[]) {
   if (!values.length) return '';
