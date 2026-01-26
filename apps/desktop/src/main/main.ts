@@ -80,6 +80,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, "../../build/icon.png"),
     backgroundColor: "#0b0b10",
     webPreferences: {
       contextIsolation: true,
@@ -97,6 +98,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  if (process.platform === "linux" || process.platform === "win32") {
+      app.setName("CommandDeck");
+  }
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
