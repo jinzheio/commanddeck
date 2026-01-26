@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import { loadConfig, saveConfig } from "./config.js";
@@ -57,6 +57,22 @@ function dissolveProject(projectName: string) {
   agentsManager?.broadcastAgents();
 
   return { ok: true, stoppedAgents: stoppedCount };
+}
+
+async function openExternal(url: string) {
+  if (typeof url !== "string") {
+    return { ok: false, reason: "invalid_url" };
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return { ok: false, reason: "unsupported_protocol" };
+    }
+    await shell.openExternal(parsed.toString());
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: "invalid_url" };
+  }
 }
 
 function createWindow() {
@@ -122,6 +138,7 @@ registerIpc(ipcMain, {
   updateProject: handleUpdateProject,
   dissolveProject,
   broadcastProjects,
+  openExternal,
   listAgents: () => agentsManager?.listAgents() || [],
   startAgent: (payload) => agentsManager?.startAgent(payload),
   stopAgent: (payload) => agentsManager?.stopAgent(payload),

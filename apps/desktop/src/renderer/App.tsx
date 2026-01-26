@@ -146,6 +146,22 @@ function App() {
   const handleViewLogs = (agentId: string) => {
     setModalAgentId(agentId);
   };
+
+  const normalizeProjectUrl = (domain: string | null | undefined) => {
+    const trimmed = domain?.trim();
+    if (!trimmed) return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?/i.test(trimmed)) {
+      return `http://${trimmed}`;
+    }
+    return `https://${trimmed}`;
+  };
+
+  const handleOpenProjectSite = async (project: Project) => {
+    const url = normalizeProjectUrl(project.domain);
+    if (!url) return;
+    await window.commanddeck.openExternal(url);
+  };
   
   // Get agents for each project
   const getProjectAgents = (projectName: string) => 
@@ -245,6 +261,7 @@ function App() {
                       setSelectedProjectForChanges(prev => prev === project.name ? null : project.name);
                     }
                   }}
+                  onProjectIconClick={(project) => handleOpenProjectSite(project)}
                   isSelectedForChanges={selectedProjectForChanges === project?.name}
                   agents={projectAgents}
                   desks={slotDesks}

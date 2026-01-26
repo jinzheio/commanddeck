@@ -22,6 +22,7 @@ interface ProjectZoneProps {
   onViewLogs?: (agentId: string) => void;
   onProjectClick?: () => void;
   onProjectEdit?: () => void;
+  onProjectIconClick?: (project: Project) => void;
   isSelectedForChanges?: boolean;
   selectedAgentId?: string | null;
 }
@@ -58,6 +59,7 @@ export function ProjectZone({
   onViewLogs,
   onProjectClick,
   onProjectEdit,
+  onProjectIconClick,
   isSelectedForChanges,
   selectedAgentId
 }: ProjectZoneProps) {
@@ -75,6 +77,7 @@ export function ProjectZone({
   const { timestamp: lastActiveTimestamp } = useLastActiveTime(project);
   const projectIcon = project?.icon ?? null;
   const hasProjectIcon = Boolean(projectIcon?.value);
+  const canOpenProjectSite = Boolean(project?.domain && onProjectIconClick);
   const cacheHit =
     latestMetrics?.cache_hit_ratio !== null && latestMetrics?.cache_hit_ratio !== undefined
       ? Math.round(latestMetrics.cache_hit_ratio * 100)
@@ -327,14 +330,29 @@ export function ProjectZone({
           {!isVacant && (
             <div className="absolute top-2 left-2 z-20 flex items-start gap-2">
               {hasProjectIcon && (
-                <div className="w-8 h-8 rounded border border-rim-border/70 bg-black/60 flex items-center justify-center overflow-hidden">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (project && canOpenProjectSite && onProjectIconClick) {
+                      onProjectIconClick(project);
+                    }
+                  }}
+                  disabled={!canOpenProjectSite}
+                  className={clsx(
+                    "w-8 h-8 rounded border border-rim-border/70 bg-black/60 flex items-center justify-center overflow-hidden",
+                    canOpenProjectSite ? "cursor-pointer hover:border-rim-accent" : "cursor-default opacity-80"
+                  )}
+                  title={canOpenProjectSite ? "Open website" : "No website configured"}
+                  aria-label={canOpenProjectSite ? "Open website" : "No website configured"}
+                >
                   {projectIcon?.type === 'emoji' && (
                     <span className="text-lg">{projectIcon.value}</span>
                   )}
                   {projectIcon?.type === 'image' && (
                     <img src={projectIcon.value} alt={`${project?.name || 'Project'} icon`} className="w-full h-full object-cover" />
                   )}
-                </div>
+                </button>
               )}
               <div className="bg-black/50 border border-rim-border/70 text-[10px] uppercase tracking-[0.12em] text-rim-muted px-2 py-1">
                 <div className="flex items-center gap-2 text-rim-text/80">

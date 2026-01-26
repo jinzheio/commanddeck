@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld("commanddeck", {
   removeProject: (name: string) => ipcRenderer.invoke("projects:remove", name),
   updateProject: (payload: unknown) => ipcRenderer.invoke("projects:update", payload),
   dissolveProject: (projectName: string) => ipcRenderer.invoke("projects:dissolve", projectName),
+  openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url),
   getAgents: () => ipcRenderer.invoke("agents:list"),
   startAgent: (payload: unknown) => ipcRenderer.invoke("agents:start", payload),
   stopAgent: (payload: unknown) => ipcRenderer.invoke("agents:stop", payload),

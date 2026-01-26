@@ -8,6 +8,7 @@ interface IpcHandlers {
   updateProject: (payload: any) => any;
   dissolveProject: (projectName: string) => any;
   broadcastProjects: () => void;
+  openExternal: (url: string) => any;
   listAgents: () => any;
   startAgent: (payload: any) => any;
   stopAgent: (payload: any) => any;
@@ -28,6 +29,7 @@ export function registerIpc(ipcMain: IpcMain, handlers: IpcHandlers): void {
   ipcMain.handle("projects:update", (_event, payload) => handlers.updateProject(payload));
   ipcMain.handle("projects:dissolve", (_event, projectName) => handlers.dissolveProject(projectName));
   ipcMain.on("projects:changed", () => handlers.broadcastProjects());
+  ipcMain.handle("shell:openExternal", (_event, url) => handlers.openExternal(url));
 
   ipcMain.handle("agents:list", () => handlers.listAgents());
   ipcMain.handle("agents:start", (_event, payload) => handlers.startAgent(payload));

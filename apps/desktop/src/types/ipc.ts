@@ -37,6 +37,7 @@ export interface CommandDeckAPI {
     updates: { name?: string; domain?: string | null; icon?: ProjectIcon | null };
   }) => Promise<{ ok: boolean; reason?: string; project?: Project; renamedFrom?: string }>;
   dissolveProject: (projectName: string) => Promise<{ ok: boolean; stoppedAgents: number }>;
+  openExternal: (url: string) => Promise<{ ok: boolean; reason?: string }>;
   removeProject: (name: string) => Promise<{ ok: boolean }>;
   getAgents: () => Promise<Agent[]>;
   startAgent: (params: { projectName: string; hubUrl: string; deskIndex: number }) => Promise<{ ok: boolean; agent?: any; reason?: string; error?: string }>;
