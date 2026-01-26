@@ -21,6 +21,7 @@ export interface AgentRecord {
   commandQueue?: string[];
   isProcessing?: boolean;
   messageCount?: number;
+  currentCommandToken?: string;
 }
 
 interface AgentsCallbacks {
@@ -116,15 +117,17 @@ export function createAgentsManager(
 
     for (const line of lines) {
       if (!line) continue;
-      appendAgentLog(agentId, line);
-
-      if (line.toLowerCase().includes("error:") || line.toLowerCase().includes("failed:")) {
-        agent.status = "error";
-        broadcastAgents();
-      }
-
-      if (agent.isProcessing && line.includes("bash-") && line.includes("$")) {
+      const normalizedLine = line
+        .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")
+        .replace(/\x1b\][^\x07]*\x07/g, "")
+        .trim();
+      if (
+        agent.isProcessing &&
+        agent.currentCommandToken &&
+        normalizedLine === agent.currentCommandToken
+      ) {
         agent.isProcessing = false;
+        agent.currentCommandToken = undefined;
 
         if (agent.status !== "error") {
           agent.status = "idle";
@@ -135,6 +138,14 @@ export function createAgentsManager(
         } else {
           broadcastAgents();
         }
+        continue;
+      }
+
+      appendAgentLog(agentId, line);
+
+      if (line.toLowerCase().includes("error:") || line.toLowerCase().includes("failed:")) {
+        agent.status = "error";
+        broadcastAgents();
       }
     }
   }
@@ -246,16 +257,18 @@ export function createAgentsManager(
       agent.messageCount = 0;
     }
     agent.messageCount += 1;
+    const commandToken = `__CMD_DONE__:${agent.sessionId}:${agent.messageCount}`;
+    agent.currentCommandToken = commandToken;
 
     try {
       const escapedText = text.replace(/'/g, "'\\''");
 
       let command;
       if (agent.messageCount === 1) {
-        command = `echo '${escapedText}' | claude -p --allowed-tools "Write,Bash" --permission-mode acceptEdits --session-id ${agent.sessionId}\n`;
+        command = `echo '${escapedText}' | claude -p --allowed-tools "Write,Bash" --permission-mode acceptEdits --session-id ${agent.sessionId} ; echo '${commandToken}'\n`;
         console.log(`[Message] First message to ${agentId}, creating session ${agent.sessionId.substring(0, 8)}...`);
       } else {
-        command = `echo '${escapedText}' | claude -p --allowed-tools "Write,Bash" --permission-mode acceptEdits --resume ${agent.sessionId}\n`;
+        command = `echo '${escapedText}' | claude -p --allowed-tools "Write,Bash" --permission-mode acceptEdits --resume ${agent.sessionId} ; echo '${commandToken}'\n`;
         console.log(`[Message] Resuming session ${agent.sessionId.substring(0, 8)} for ${agentId} (message #${agent.messageCount})`);
       }
 
