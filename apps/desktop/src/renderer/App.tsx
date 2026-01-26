@@ -136,7 +136,10 @@ function App() {
 
   const handleSendMessage = async (agentId: string, text: string) => {
     console.log('[App] Sending command to agent:', agentId, text);
-    await sendMessage(agentId, text);
+    const res = await sendMessage(agentId, text);
+    if (res?.ok) {
+      setSelectedAgentId(null);
+    }
   };
 
   const handleBubbleClick = (agentId: string) => {

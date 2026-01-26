@@ -65,17 +65,11 @@ export function AgentOutputModal({ agent, logs, onClose }: AgentOutputModalProps
         </div>
 
         {/* Output Logs */}
-        <div className="flex-1 overflow-auto p-4 bg-black/30 font-mono text-xs">
+        <div className="flex-1 overflow-auto p-4 bg-black/30 font-mono text-xs select-text cursor-text whitespace-pre-wrap text-rim-text/80">
           {logs.length > 0 ? (
-            <div className="space-y-1">
-              {logs.map((line, idx) => (
-                <div key={idx} className="text-rim-text/80">
-                  {line}
-                </div>
-              ))}
-            </div>
+            logs.join('\n')
           ) : (
-            <div className="text-center text-rim-muted py-8">
+            <div className="text-center text-rim-muted py-8 select-none">
               No output logs available
             </div>
           )}

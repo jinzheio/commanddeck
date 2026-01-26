@@ -69,6 +69,7 @@ export function ProjectZone({
   const [isHovered, setIsHovered] = useState(false);
   const [completedAgents, setCompletedAgents] = useState<Set<string>>(new Set());
   const previousStatusRef = useRef<Map<string, string>>(new Map());
+  const commandInputRef = useRef<HTMLTextAreaElement | null>(null);
   const tiles = slot.tiles;
   const rows = tiles.length || 1;
   const cols = tiles[0]?.length || 1;
@@ -100,6 +101,14 @@ export function ProjectZone({
       previousStatusRef.current.set(agent.id, agent.status);
     });
   }, [agents]);
+
+  useEffect(() => {
+    if (!commandInputRef.current) return;
+    const el = commandInputRef.current;
+    el.style.height = '0px';
+    const nextHeight = Math.min(el.scrollHeight, 96);
+    el.style.height = `${nextHeight}px`;
+  }, [commandInput, selectedAgentId]);
   
   const handleDeskClick = (e: React.MouseEvent, deskIndex: number) => {
     e.stopPropagation();
@@ -234,14 +243,20 @@ export function ProjectZone({
         >
           <div className="bg-rim-panel border-2 border-rim-accent rounded shadow-2xl p-2 backdrop-blur-sm">
             <form onSubmit={(e) => handleSendCommand(e, selectedAgent.id)} className="flex gap-1">
-              <input
-                type="text"
+              <textarea
+                ref={commandInputRef}
                 value={commandInput}
                 onChange={(e) => setCommandInput(e.target.value)}
-                placeholder={`Command ${selectedAgent.name}...`}
-                className="flex-1 bg-rim-bg border border-rim-border px-2 py-1 text-xs focus:border-rim-accent outline-none"
+                placeholder={`Command ${selectedAgent.name}... (Shift+Enter for newline)`}
+                className="flex-1 bg-rim-bg border border-rim-border px-2 py-1 text-xs focus:border-rim-accent outline-none resize-none leading-relaxed max-h-24 overflow-y-auto"
                 autoFocus
                 onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendCommand(e, selectedAgent.id);
+                  }
+                }}
               />
               <button 
                 type="submit"
@@ -312,7 +327,7 @@ export function ProjectZone({
                   <span className="text-6xl leading-none text-white/10">{projectIcon.value}</span>
                 )}
                 {hasProjectIcon && projectIcon?.type === 'image' && (
-                  <div className="w-16 h-16 opacity-10">
+                  <div className="w-16 h-16 opacity-30">
                     <img
                       src={projectIcon.value}
                       alt={`${project?.name || 'Project'} icon`}
@@ -354,13 +369,15 @@ export function ProjectZone({
                   )}
                 </button>
               )}
-              <div className="bg-black/50 border border-rim-border/70 text-[10px] uppercase tracking-[0.12em] text-rim-muted px-2 py-1">
-                <div className="flex items-center gap-2 text-rim-text/80">
-                  <span>R {latestMetrics?.requests ?? '--'}</span>
-                  <span>H {cacheHit !== null ? `${cacheHit}%` : '--'}</span>
-                  <span className="text-rim-warning">4 {latestMetrics?.status_4xx ?? '--'}</span>
-                  <span className="text-rim-error">5 {latestMetrics?.status_5xx ?? '--'}</span>
-                  <span>🕒 {lastActiveLabel}</span>
+              <div className="flex flex-col gap-1">
+                <div className="bg-black/50 border border-rim-border/70 text-[10px] uppercase tracking-[0.12em] text-rim-muted px-2 py-1">
+                  <div className="flex items-center gap-2 text-rim-text/80">
+                    <span>R {latestMetrics?.requests ?? '--'}</span>
+                    <span>H {cacheHit !== null ? `${cacheHit}%` : '--'}</span>
+                    <span className="text-rim-warning">4 {latestMetrics?.status_4xx ?? '--'}</span>
+                    <span className="text-rim-error">5 {latestMetrics?.status_5xx ?? '--'}</span>
+                    <span>🕒 {lastActiveLabel}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -391,7 +408,7 @@ export function ProjectZone({
                         key={`desk-${idx}`}
                         onClick={(e) => handleDeskClick(e, idx)}
                         className={clsx(
-                          "absolute w-6 h-6 rounded-sm shadow-md border transition-all cursor-pointer",
+                          "absolute w-8 h-8 rounded-sm shadow-md border transition-all cursor-pointer",
                           hasAgent ? "bg-amber-800 border-amber-900/50" : "bg-amber-700/50 border-amber-800/30 hover:bg-amber-700 hover:border-amber-800"
                         )}
                         style={{
@@ -402,7 +419,7 @@ export function ProjectZone({
                         title={hasAgent ? undefined : "Click to spawn agent"}
                       >
                         {/* Desk decoration */}
-                        <div className="absolute inset-1 bg-amber-700/30 rounded-[2px]" />
+                        <div className="absolute inset-1.5 bg-amber-700/30 rounded-[2px]" />
                       </div>
                     );
                   })}
@@ -456,7 +473,7 @@ export function ProjectZone({
                       >
                         {/* Agent Avatar */}
                         <div className={clsx(
-                          "w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg border-2 transition-colors duration-300 relative",
+                          "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg border-2 transition-colors duration-300 relative",
                           borderColor,
                           bgColor
                         )}>
@@ -467,7 +484,7 @@ export function ProjectZone({
                             <button
                               type="button"
                               onClick={(e) => handleAgentStop(e, agent.id)}
-                              className="absolute -top-1 -right-1 w-4 h-4 bg-rim-error text-white rounded-full flex items-center justify-center text-[10px] hover:scale-110 transition-transform shadow-md z-20"
+                              className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-rim-error text-white rounded-full flex items-center justify-center text-[10px] hover:scale-110 transition-transform shadow-md z-20"
                               title="Stop agent"
                             >
                               ✕
@@ -479,7 +496,7 @@ export function ProjectZone({
                             <button
                               type="button"
                               onClick={(e) => handleViewLogs(e, agent.id)}
-                              className="absolute -bottom-1 -right-1 w-4 h-4 bg-rim-panel text-white rounded-full flex items-center justify-center text-[10px] hover:scale-110 transition-transform shadow-md z-20 border border-rim-border"
+                              className="absolute -bottom-1 -right-1 w-4.5 h-4.5 bg-rim-panel text-white rounded-full flex items-center justify-center text-[10px] hover:scale-110 transition-transform shadow-md z-20 border border-rim-border"
                               title="View live logs"
                             >
                               ≡
@@ -491,7 +508,7 @@ export function ProjectZone({
                             <button
                               type="button"
                               onClick={(e) => handleBubbleClick(e, agent.id)}
-                              className="absolute -top-2 -right-2 w-5 h-5 bg-rim-success text-white rounded-full flex items-center justify-center text-xs hover:scale-110 transition-transform shadow-lg z-20 animate-bounce"
+                              className="absolute -top-2 -right-2 w-5.5 h-5.5 bg-rim-success text-white rounded-full flex items-center justify-center text-xs hover:scale-110 transition-transform shadow-lg z-20 animate-bounce"
                               title="Task completed! Click to view output"
                             >
                               ✓
@@ -506,9 +523,14 @@ export function ProjectZone({
                           isWorking && "animate-pulse"
                         )} />
 
-                        {/* Selection ring */}
+                        {/* Working ring */}
+                        {isWorking && (
+                          <div className="absolute inset-0 rounded-full border-2 border-rim-success animate-ping opacity-75" />
+                        )}
+
+                        {/* Selection ring (no animation) */}
                         {isSelectedAgent && (
-                          <div className="absolute inset-0 rounded-full border-2 border-rim-accent animate-ping opacity-75" />
+                          <div className="absolute inset-0 rounded-full border-2 border-rim-accent/80" />
                         )}
 
                         {/* Command popup removed from here - rendered in outer container */}
