@@ -28,6 +28,18 @@ export interface GitChange {
   timestamp: number;
 }
 
+export type DeployStatusState = 'success' | 'failure' | 'error' | 'pending' | 'unknown';
+
+export type DeployStatus = {
+  state: DeployStatusState;
+  description?: string;
+  targetUrl?: string;
+  updatedAt?: string;
+  sha?: string;
+  commitDate?: string;
+  source?: 'status' | 'check';
+};
+
 export interface CommandDeckAPI {
   getProjects: () => Promise<Project[]>;
   createProject: (payload: { name: string; slotId?: number }) => Promise<{ ok: boolean; project?: Project; gitInit?: boolean; repoCreated?: boolean; warnings?: string[] }>;
@@ -57,4 +69,5 @@ export interface CommandDeckAPI {
   approveGitChange: (projectName: string, filePath: string) => Promise<{ ok: boolean; reason?: string }>;
   rejectGitChange: (projectName: string, filePath: string) => Promise<{ ok: boolean; reason?: string }>;
   getLastCommitTime: (projectName: string) => Promise<{ ok: boolean; timestamp?: number; reason?: string }>;
+  getDeployStatus: (projectName: string) => Promise<{ ok: boolean; status?: DeployStatus; reason?: string }>;
 }

@@ -19,6 +19,7 @@ interface IpcHandlers {
   approveGitChange: (payload: any) => any;
   rejectGitChange: (payload: any) => any;
   getLastCommitTime: (projectName: string) => any;
+  getDeployStatus: (projectName: string) => any;
 }
 
 export function registerIpc(ipcMain: IpcMain, handlers: IpcHandlers): void {
@@ -42,4 +43,5 @@ export function registerIpc(ipcMain: IpcMain, handlers: IpcHandlers): void {
   ipcMain.handle("git:approveChange", (_event, payload) => handlers.approveGitChange(payload));
   ipcMain.handle("git:rejectChange", (_event, payload) => handlers.rejectGitChange(payload));
   ipcMain.handle("git:getLastCommitTime", (_event, projectName) => handlers.getLastCommitTime(projectName));
+  ipcMain.handle("github:getDeployStatus", (_event, projectName) => handlers.getDeployStatus(projectName));
 }

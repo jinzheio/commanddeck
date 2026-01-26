@@ -1,6 +1,7 @@
 import type { Project } from '../stores/projectStore';
 import type { AnalyticsRow } from '../hooks/useAnalytics';
 import { useLastActiveTime } from '../hooks/useLastActiveTime';
+import { useDeployStatus } from '../hooks/useDeployStatus';
 
 type TrafficPanelProps = {
   project: Project | null;
@@ -66,6 +67,27 @@ export function TrafficPanel({
   const polyline = sparkline(values);
   const { timestamp: lastActiveTimestamp } = useLastActiveTime(project);
   const lastActiveLabel = formatLastActive(lastActiveTimestamp);
+  const { status: deployStatus } = useDeployStatus(project?.name ?? null);
+  const deployState = deployStatus?.state ?? 'unknown';
+  const deployDotClass = [
+    'w-2 h-2 rounded-full',
+    deployState === 'success' && 'bg-rim-success',
+    (deployState === 'failure' || deployState === 'error') && 'bg-rim-error',
+    deployState === 'pending' && 'bg-rim-warning animate-pulse',
+    deployState === 'unknown' && 'bg-rim-muted',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const deployLabel =
+    deployState === 'success'
+      ? 'Deploy OK'
+      : deployState === 'pending'
+        ? 'Deploying…'
+        : deployState === 'failure'
+          ? 'Deploy Failed'
+          : deployState === 'error'
+            ? 'Deploy Error'
+            : 'Deploy Unknown';
 
   return (
     <div className="absolute top-16 right-6 z-30 w-80 bg-rim-panel/10 border border-rim-border shadow-xl rounded backdrop-blur-sm">
@@ -104,6 +126,13 @@ export function TrafficPanel({
                 <div className="text-lg font-semibold flex items-center gap-2">
                   <span>🕒</span>
                   <span>{lastActiveLabel}</span>
+                </div>
+              </div>
+              <div className="bg-rim-bg/60 p-2 rounded col-span-2">
+                <div className="text-xs text-rim-muted">Deploy status</div>
+                <div className="text-lg font-semibold flex items-center gap-2">
+                  <span className={deployDotClass} />
+                  <span>{deployLabel}</span>
                 </div>
               </div>
               {project?.domain && (

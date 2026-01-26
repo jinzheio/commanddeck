@@ -17,6 +17,7 @@ import {
   rejectGitChange,
   getLastCommitTime,
 } from "./git.js";
+import { getGithubDeployStatus } from "./github.js";
 import { registerIpc } from "./ipc.js";
 import { createAgentsManager } from "./agents.js";
 
@@ -153,6 +154,7 @@ registerIpc(ipcMain, {
   approveGitChange: ({ projectName, filePath }) => approveGitChange(projectName, filePath),
   rejectGitChange: ({ projectName, filePath }) => rejectGitChange(projectName, filePath),
   getLastCommitTime,
+  getDeployStatus: (projectName) => getGithubDeployStatus(projectName),
 });
 
 function killAllAgents() {

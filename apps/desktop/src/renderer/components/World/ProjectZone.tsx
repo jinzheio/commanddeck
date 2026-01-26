@@ -5,6 +5,7 @@ import type { DeskPosition, ColonySlot } from '../../config/colony';
 import { useState, useEffect, useRef } from 'react';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { useLastActiveTime } from '../../hooks/useLastActiveTime';
+import { useDeployStatus } from '../../hooks/useDeployStatus';
 
 interface ProjectZoneProps {
   project?: Project;
@@ -76,6 +77,7 @@ export function ProjectZone({
   const analytics = useAnalytics(project ?? null, 24);
   const latestMetrics = analytics.rows[analytics.rows.length - 1];
   const { timestamp: lastActiveTimestamp } = useLastActiveTime(project);
+  const { status: deployStatus } = useDeployStatus(project?.name ?? null);
   const projectIcon = project?.icon ?? null;
   const hasProjectIcon = Boolean(projectIcon?.value);
   const canOpenProjectSite = Boolean(project?.domain && onProjectIconClick);
@@ -84,6 +86,14 @@ export function ProjectZone({
       ? Math.round(latestMetrics.cache_hit_ratio * 100)
       : null;
   const lastActiveLabel = formatLastActive(lastActiveTimestamp);
+  const deployState = deployStatus?.state ?? 'unknown';
+  const deployDotClass = clsx(
+    'w-2 h-2 rounded-full',
+    deployState === 'success' && 'bg-rim-success',
+    (deployState === 'failure' || deployState === 'error') && 'bg-rim-error',
+    deployState === 'pending' && 'bg-rim-warning animate-pulse',
+    deployState === 'unknown' && 'bg-rim-muted'
+  );
   
   // Check if any agent is actively working
   const hasWorkingAgents = agents.some(agent => agent.status === 'working');
@@ -372,6 +382,7 @@ export function ProjectZone({
               <div className="flex flex-col gap-1">
                 <div className="bg-black/50 border border-rim-border/70 text-[10px] uppercase tracking-[0.12em] text-rim-muted px-2 py-1">
                   <div className="flex items-center gap-2 text-rim-text/80">
+                    <span className={deployDotClass} title={`Deploy ${deployState}`} />
                     <span>R {latestMetrics?.requests ?? '--'}</span>
                     <span>H {cacheHit !== null ? `${cacheHit}%` : '--'}</span>
                     <span className="text-rim-warning">4 {latestMetrics?.status_4xx ?? '--'}</span>
