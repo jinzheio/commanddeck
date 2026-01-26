@@ -73,33 +73,21 @@ function parseGitHubRepo(remoteUrl: string): { owner: string; repo: string } | n
   return { owner, repo };
 }
 
-function getDefaultBranch(projectPath: string): string {
+function getLatestCommitInfo(projectPath: string): { sha: string; commitDate: string } | null {
   try {
-    const output = execSync("git symbolic-ref --short refs/remotes/origin/HEAD", {
-      cwd: projectPath,
-      encoding: "utf-8",
-    });
-    if (output) {
-      const ref = output.trim();
-      const parts = ref.split("/");
-      const name = parts[parts.length - 1];
-      if (name) return name;
-    }
-  } catch {
-    // Ignore and fall back.
-  }
-  try {
-    const output = execSync("git rev-parse --abbrev-ref HEAD", {
+    const sha = execSync("git rev-parse HEAD", {
       cwd: projectPath,
       encoding: "utf-8",
     }).trim();
-    if (output && output !== "HEAD") {
-      return output;
-    }
+    if (!sha) return null;
+    const commitDate = execSync("git log -1 --format=%cI", {
+      cwd: projectPath,
+      encoding: "utf-8",
+    }).trim();
+    return { sha, commitDate };
   } catch {
-    // Ignore and fall back.
+    return null;
   }
-  return "main";
 }
 
 function getRemoteOrigin(projectPath: string): string | null {
@@ -177,19 +165,14 @@ export async function getGithubDeployStatus(projectName: string): Promise<{ ok: 
     return { ok: false, reason: "unsupported_remote" };
   }
 
-  const branch = getDefaultBranch(projectPath);
+  const localCommit = getLatestCommitInfo(projectPath);
+  if (!localCommit?.sha) {
+    return { ok: false, reason: "no_commits" };
+  }
   const apiBase = "https://api.github.com";
   try {
-    const commits = await fetchJson(
-      `${apiBase}/repos/${repoInfo.owner}/${repoInfo.repo}/commits?sha=${encodeURIComponent(branch)}&per_page=1`,
-      token
-    );
-    const latest = Array.isArray(commits) ? commits[0] : null;
-    if (!latest?.sha) {
-      return { ok: false, reason: "no_commits" };
-    }
-    const sha = String(latest.sha);
-    const commitDate = String(latest?.commit?.author?.date || "");
+    const sha = localCommit.sha;
+    const commitDate = localCommit.commitDate;
 
     const statusPayload = await fetchJson(
       `${apiBase}/repos/${repoInfo.owner}/${repoInfo.repo}/commits/${sha}/status`,

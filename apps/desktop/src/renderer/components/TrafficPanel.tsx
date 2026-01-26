@@ -67,7 +67,7 @@ export function TrafficPanel({
   const polyline = sparkline(values);
   const { timestamp: lastActiveTimestamp } = useLastActiveTime(project);
   const lastActiveLabel = formatLastActive(lastActiveTimestamp);
-  const { status: deployStatus } = useDeployStatus(project?.name ?? null);
+  const { status: deployStatus, refresh: refreshDeploy } = useDeployStatus(project?.name ?? null);
   const deployState = deployStatus?.state ?? 'unknown';
   const deployDotClass = [
     'w-2 h-2 rounded-full',
@@ -130,9 +130,19 @@ export function TrafficPanel({
               </div>
               <div className="bg-rim-bg/60 p-2 rounded col-span-2">
                 <div className="text-xs text-rim-muted">Deploy status</div>
-                <div className="text-lg font-semibold flex items-center gap-2">
-                  <span className={deployDotClass} />
-                  <span>{deployLabel}</span>
+                <div className="text-lg font-semibold flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className={deployDotClass} />
+                    <span>{deployLabel}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={refreshDeploy}
+                    className="text-xs text-rim-muted hover:text-white"
+                    title="Refresh deploy status"
+                  >
+                    ↻
+                  </button>
                 </div>
               </div>
               {project?.domain && (
