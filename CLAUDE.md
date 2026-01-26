@@ -18,7 +18,7 @@ All communication is event-driven through the Hub.
 # Development
 pnpm dev              # Start all services (hub + desktop) in parallel
 pnpm --filter hub dev      # Hub only on http://127.0.0.1:8787
-pnpm --filter desktop dev  # Electron app only
+pnpm --filter desktop dev  # Electron app only (requires hub running)
 
 # Build & Type Checking
 pnpm build            # Build all packages/apps
@@ -27,6 +27,17 @@ pnpm format           # Prettier formatting
 ```
 
 ## Architecture
+
+### The "Front-Store-Back-Factory" Pattern
+```
+┌─────────────────────────────────────────────────────────────┐
+│  🏪 Front (Renderer)     🏢 Store (Hub)    🏭 Factory (Main) │
+│  ────────────────────    ───────────────    ───────────────│
+│  • React UI              • Fastify server   • node-pty mgmt │
+│  • WebSocket client      • SQLite DB        • Git ops      │
+│  • User interactions     • Event broadcast  • System access│
+└─────────────────────────────────────────────────────────────┘
+```
 
 ### Event Flow
 ```
@@ -56,12 +67,19 @@ Hub responds with init events, then pushes real-time updates:
 { "type": "event", "event": {...} }
 ```
 
+### Database Schema (SQLite)
+- `events` - All agent events with indexes on (project_id, id) and (agent_id, id)
+- `agents` - Current agent state (id, project_id, current_state, current_model, last_seen)
+- `cf_analytics_hourly` - Cloudflare analytics per project per hour
+
+Location: Platform-specific app data directory (`~/Library/Application Support/CommandDeck` on macOS)
+
 ## Key Files
 
 - `apps/hub/src/server.ts` - Hub entry point with Fastify + WebSocket
-- `apps/hub/src/store.ts` - SQLite operations for event persistence
+- `apps/hub/src/store.ts` - SQLite operations for event persistence (prepared statements, WAL mode)
 - `packages/protocol/src/events.ts` - Zod schemas for all event types
-- `packages/protocol/src/commands.ts` - Command type definitions
+- `packages/protocol/src/commands.ts` - Command type definitions (send_message, approve, retry, cancel)
 
 ## State Management
 
@@ -74,7 +92,7 @@ The renderer uses Zustand for state:
 
 - Environment: `.env` files checked in multiple locations (project root, `~/.commanddeck/.env`)
 - Projects: `~/.commanddeck/projects.json`
-- Database: `~/.commanddeck/events.sqlite`
+- Database: Platform-specific app data directory (see `apps/hub/src/store.ts:getDataDir()`)
 - Default project search path: `~/Projects/`
 
 ## Claude Code Integration
