@@ -14,13 +14,13 @@
 
 在深入配置之前，我们必须先接受一个事实：**JavaScript 实际上分裂成了两个世界**。
 
-### 1. CommonJS (CJS) —— Node.js 老国王
+### 1. CommonJS (CJS) —— Node.js 老标准
 *   **特征**：`require()` / `module.exports`
 *   **哲学**：动态、同步。文件加载是运行时发生的。
 *   **主场**：旧版 Node.js 服务、构建脚本、以及很多 Electron 项目的**主进程**（尽管 Node.js 和 Electron 现已原生支持 ESM，但生态迁移尚需时日）。
 *   **痛点**：无法被 Tree-shaking 完美优化，浏览器原生不支持。
 
-### 2. ESM (ES Modules) —— 现代 Web 新皇帝
+### 2. ESM (ES Modules) —— 现代 Web 标准
 *   **特征**：`import` / `export`
 *   **哲学**：静态、异步。依赖关系在代码运行前就已经确定。
 *   **主场**：浏览器、Vite/Webpack 构建的前端应用、现代 Deno/Bun 运行时。
@@ -175,7 +175,7 @@ Next.js (App Router) 实际上混合了两种环境：
 **但是！** Next.js 的编译器（SWC/TurboPack）非常智能。它允许你在所有地方写 `import/export` (ESM 语法)。
 *   对于服务端，它会根据你的 `next.config.js` 和环境自动转译成 Node 能跑的代码（CommonJS 或 Node-ESM）。
 *   对于客户端，它会打包成浏览器能跑的代码。
-**注意点**：`next.config.js` 本身。以前推荐用 CJS 格式，但现在 Next.js 也支持 `next.config.mjs`。如果你的项目是 `"type": "module"`，直接用 `.mjs` 后缀可以避免很多麻烦。
+**注意点**：`next.config.js` 本身。以前推荐用 CJS 格式，但现在**还是直接使用 `next.config.ts`**。因为 Next.js 内部会自动转译这个文件，我们不需要担心它是 CJS 还是 ESM。使用 `.ts` 后，可以导入 `NextConfig` 类型，获得完整的**代码提示和类型检查**，这是 `.js` 或 `.mjs` 没有的开发体验提升。
 
 ### Q7: `package.json` 的 `type` 字段真的还重要吗？我都用 TS 了。
 **A: 非常重要！它是宪法。** （回到Q1）
