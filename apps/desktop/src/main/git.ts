@@ -223,3 +223,31 @@ export function rejectGitChange(projectName: string, filePath: string) {
     return { ok: false, reason: err.message };
   }
 }
+
+export function getLastCommitTime(projectName: string) {
+  const projectPath = resolveProjectPath(projectName);
+
+  if (!fs.existsSync(projectPath)) {
+    return { ok: false, reason: "project_not_found" };
+  }
+  if (!isGitRepo(projectPath)) {
+    return { ok: false, reason: "not_git_repo" };
+  }
+
+  try {
+    const output = execSync("git log -1 --format=%ct", {
+      cwd: projectPath,
+      encoding: "utf-8",
+    }).trim();
+
+    if (!output) {
+      return { ok: false, reason: "no_commits" };
+    }
+
+    const timestamp = parseInt(output, 10) * 1000; // Convert to milliseconds
+    return { ok: true, timestamp };
+  } catch (err: any) {
+    console.error("[Git] Failed to get last commit time:", err.message);
+    return { ok: false, reason: err.message };
+  }
+}

@@ -4,6 +4,7 @@ import type { Agent } from '../../stores/agentStore';
 import type { DeskPosition, ColonySlot } from '../../config/colony';
 import { useState, useEffect, useRef } from 'react';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import { useLastActiveTime } from '../../hooks/useLastActiveTime';
 
 interface ProjectZoneProps {
   project?: Project;
@@ -23,6 +24,22 @@ interface ProjectZoneProps {
   onProjectEdit?: () => void;
   isSelectedForChanges?: boolean;
   selectedAgentId?: string | null;
+}
+
+function formatLastActive(timestamp: number | null | undefined) {
+  if (!timestamp) return '--';
+  const diffMs = Date.now() - timestamp;
+  if (diffMs < 0) return '0 min';
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hrs`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} days`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} months`;
+  const years = Math.floor(days / 365);
+  return `${years} years`;
 }
 
 export function ProjectZone({ 
@@ -55,12 +72,14 @@ export function ProjectZone({
   const cols = tiles[0]?.length || 1;
   const analytics = useAnalytics(project ?? null, 24);
   const latestMetrics = analytics.rows[analytics.rows.length - 1];
+  const { timestamp: lastActiveTimestamp } = useLastActiveTime(project);
   const projectIcon = project?.icon ?? null;
   const hasProjectIcon = Boolean(projectIcon?.value);
   const cacheHit =
     latestMetrics?.cache_hit_ratio !== null && latestMetrics?.cache_hit_ratio !== undefined
       ? Math.round(latestMetrics.cache_hit_ratio * 100)
       : null;
+  const lastActiveLabel = formatLastActive(lastActiveTimestamp);
   
   // Check if any agent is actively working
   const hasWorkingAgents = agents.some(agent => agent.status === 'working');
@@ -323,6 +342,7 @@ export function ProjectZone({
                   <span>H {cacheHit !== null ? `${cacheHit}%` : '--'}</span>
                   <span className="text-rim-warning">4 {latestMetrics?.status_4xx ?? '--'}</span>
                   <span className="text-rim-error">5 {latestMetrics?.status_5xx ?? '--'}</span>
+                  <span>🕒 {lastActiveLabel}</span>
                 </div>
               </div>
             </div>

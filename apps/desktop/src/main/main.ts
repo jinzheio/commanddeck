@@ -15,6 +15,7 @@ import {
   getGitDiff,
   approveGitChange,
   rejectGitChange,
+  getLastCommitTime,
 } from "./git.js";
 import { registerIpc } from "./ipc.js";
 import { createAgentsManager } from "./agents.js";
@@ -130,6 +131,7 @@ registerIpc(ipcMain, {
   getGitDiff: ({ projectName, filePath, status }) => getGitDiff(projectName, filePath, status),
   approveGitChange: ({ projectName, filePath }) => approveGitChange(projectName, filePath),
   rejectGitChange: ({ projectName, filePath }) => rejectGitChange(projectName, filePath),
+  getLastCommitTime,
 });
 
 function killAllAgents() {

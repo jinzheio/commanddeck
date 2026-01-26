@@ -1,5 +1,6 @@
 import type { Project } from '../stores/projectStore';
 import type { AnalyticsRow } from '../hooks/useAnalytics';
+import { useLastActiveTime } from '../hooks/useLastActiveTime';
 
 type TrafficPanelProps = {
   project: Project | null;
@@ -48,6 +49,22 @@ function sparkline(values: number[]) {
     .join(' ');
 }
 
+function formatLastActive(timestamp: number | null | undefined) {
+  if (!timestamp) return '--';
+  const diffMs = Date.now() - timestamp;
+  if (diffMs < 0) return '0 min';
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hrs`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} days`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} months`;
+  const years = Math.floor(days / 365);
+  return `${years} years`;
+}
+
 export function TrafficPanel({
   project,
   rows,
@@ -59,11 +76,13 @@ export function TrafficPanel({
   const latest = rows[rows.length - 1];
   const values = rows.map((row) => row.requests ?? 0);
   const polyline = sparkline(values);
+  const { timestamp: lastActiveTimestamp } = useLastActiveTime(project);
+  const lastActiveLabel = formatLastActive(lastActiveTimestamp);
 
   return (
     <div className="absolute top-16 right-6 z-30 w-80 bg-rim-panel/10 border border-rim-border shadow-xl rounded backdrop-blur-sm">
       <div className="panel-header">
-        <span>Traffic</span>
+        <span>Stats</span>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -89,51 +108,64 @@ export function TrafficPanel({
         )}
         {error && <div className="text-rim-error">Error: {error}</div>}
         {loading && <div className="text-rim-muted">Loading analytics…</div>}
-        {!loading && project?.domain && (
+        {!loading && project && (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-rim-bg/60 p-2 rounded">
-                <div className="text-xs text-rim-muted">Requests</div>
-                <div className="text-lg font-semibold">
-                  {latest?.requests ?? '--'}
+              <div className="bg-rim-bg/60 p-2 rounded col-span-2">
+                <div className="text-xs text-rim-muted">Last active</div>
+                <div className="text-lg font-semibold flex items-center gap-2">
+                  <span>🕒</span>
+                  <span>{lastActiveLabel}</span>
                 </div>
               </div>
-              <div className="bg-rim-bg/60 p-2 rounded">
-                <div className="text-xs text-rim-muted">Cache Hit</div>
-                <div className="text-lg font-semibold">
-                  {formatPercent(latest?.cache_hit_ratio ?? null)}
-                </div>
-              </div>
-              <div className="bg-rim-bg/60 p-2 rounded">
-                <div className="text-xs text-rim-muted">4xx</div>
-                <div className="text-lg font-semibold text-rim-warning">
-                  {latest?.status_4xx ?? '--'}
-                </div>
-              </div>
-              <div className="bg-rim-bg/60 p-2 rounded">
-                <div className="text-xs text-rim-muted">5xx</div>
-                <div className="text-lg font-semibold text-rim-error">
-                  {latest?.status_5xx ?? '--'}
-                </div>
-              </div>
+              {project?.domain && (
+                <>
+                  <div className="bg-rim-bg/60 p-2 rounded">
+                    <div className="text-xs text-rim-muted">Requests</div>
+                    <div className="text-lg font-semibold">
+                      {latest?.requests ?? '--'}
+                    </div>
+                  </div>
+                  <div className="bg-rim-bg/60 p-2 rounded">
+                    <div className="text-xs text-rim-muted">Cache Hit</div>
+                    <div className="text-lg font-semibold">
+                      {formatPercent(latest?.cache_hit_ratio ?? null)}
+                    </div>
+                  </div>
+                  <div className="bg-rim-bg/60 p-2 rounded">
+                    <div className="text-xs text-rim-muted">4xx</div>
+                    <div className="text-lg font-semibold text-rim-warning">
+                      {latest?.status_4xx ?? '--'}
+                    </div>
+                  </div>
+                  <div className="bg-rim-bg/60 p-2 rounded">
+                    <div className="text-xs text-rim-muted">5xx</div>
+                    <div className="text-lg font-semibold text-rim-error">
+                      {latest?.status_5xx ?? '--'}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
-            <div className="bg-rim-bg/40 p-2 rounded">
-              <div className="flex items-center justify-between text-xs text-rim-muted mb-2">
-                <span>Last 24h</span>
-                <span>{rows.length ? formatHour(rows[0].ts_hour_utc) : '--'}</span>
+            {project?.domain && (
+              <div className="bg-rim-bg/40 p-2 rounded">
+                <div className="flex items-center justify-between text-xs text-rim-muted mb-2">
+                  <span>Last 24h</span>
+                  <span>{rows.length ? formatHour(rows[0].ts_hour_utc) : '--'}</span>
+                </div>
+                <svg viewBox="0 0 100 40" className="w-full h-10">
+                  {polyline && (
+                    <polyline
+                      fill="none"
+                      stroke="var(--color-rim-accent)"
+                      strokeWidth="2"
+                      points={polyline}
+                    />
+                  )}
+                </svg>
               </div>
-              <svg viewBox="0 0 100 40" className="w-full h-10">
-                {polyline && (
-                  <polyline
-                    fill="none"
-                    stroke="var(--color-rim-accent)"
-                    strokeWidth="2"
-                    points={polyline}
-                  />
-                )}
-              </svg>
-            </div>
+            )}
           </>
         )}
       </div>

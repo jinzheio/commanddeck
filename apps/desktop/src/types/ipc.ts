@@ -55,4 +55,5 @@ export interface CommandDeckAPI {
   getGitDiff: (projectName: string, filePath: string, status?: string) => Promise<{ ok: boolean; filePath?: string; diff?: string; oldContent?: string; newContent?: string; reason?: string }>;
   approveGitChange: (projectName: string, filePath: string) => Promise<{ ok: boolean; reason?: string }>;
   rejectGitChange: (projectName: string, filePath: string) => Promise<{ ok: boolean; reason?: string }>;
+  getLastCommitTime: (projectName: string) => Promise<{ ok: boolean; timestamp?: number; reason?: string }>;
 }
