@@ -154,7 +154,11 @@ registerIpc(ipcMain, {
   approveGitChange: ({ projectName, filePath }) => approveGitChange(projectName, filePath),
   rejectGitChange: ({ projectName, filePath }) => rejectGitChange(projectName, filePath),
   getLastCommitTime,
-  getDeployStatus: (projectName) => getGithubDeployStatus(projectName),
+  getDeployStatus: (payload) => {
+    const projectName = typeof payload === "string" ? payload : payload?.projectName;
+    const force = typeof payload === "string" ? false : Boolean(payload?.force);
+    return getGithubDeployStatus(projectName, { force });
+  },
 });
 
 function killAllAgents() {

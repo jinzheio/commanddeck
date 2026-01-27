@@ -14,14 +14,14 @@ export function useDeployStatus(projectName: string | null) {
     status: null,
   });
 
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (force = false) => {
     if (!projectName) {
       setState({ loading: false, error: null, status: null });
       return;
     }
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
-      const result = await window.commanddeck.getDeployStatus(projectName);
+      const result = await window.commanddeck.getDeployStatus(projectName, { force });
       if (result.ok && result.status) {
         setState({ loading: false, error: null, status: result.status });
       } else {
@@ -43,9 +43,9 @@ export function useDeployStatus(projectName: string | null) {
   useEffect(() => {
     fetchStatus();
     if (!projectName) return;
-    const interval = setInterval(fetchStatus, 60_000);
+    const interval = setInterval(() => fetchStatus(false), 60_000);
     return () => clearInterval(interval);
   }, [projectName, fetchStatus]);
 
-  return { ...state, refresh: fetchStatus };
+  return { ...state, refresh: () => fetchStatus(true) };
 }

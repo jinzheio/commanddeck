@@ -137,11 +137,15 @@ function mapCheckRunState(run: any): DeployStatusState {
   return "unknown";
 }
 
-export async function getGithubDeployStatus(projectName: string): Promise<{ ok: boolean; status?: DeployStatus; reason?: string }> {
+export async function getGithubDeployStatus(
+  projectName: string,
+  options?: { force?: boolean }
+): Promise<{ ok: boolean; status?: DeployStatus; reason?: string }> {
   if (!projectName) return { ok: false, reason: "missing_project" };
 
   const cached = deployStatusCache.get(projectName);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+  const force = Boolean(options?.force);
+  if (!force && cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return cached.value;
   }
 

@@ -69,5 +69,8 @@ export interface CommandDeckAPI {
   approveGitChange: (projectName: string, filePath: string) => Promise<{ ok: boolean; reason?: string }>;
   rejectGitChange: (projectName: string, filePath: string) => Promise<{ ok: boolean; reason?: string }>;
   getLastCommitTime: (projectName: string) => Promise<{ ok: boolean; timestamp?: number; reason?: string }>;
-  getDeployStatus: (projectName: string) => Promise<{ ok: boolean; status?: DeployStatus; reason?: string }>;
+  getDeployStatus: (
+    projectName: string,
+    options?: { force?: boolean }
+  ) => Promise<{ ok: boolean; status?: DeployStatus; reason?: string }>;
 }

@@ -80,5 +80,9 @@ contextBridge.exposeInMainWorld("commanddeck", {
   approveGitChange: (projectName: string, filePath: string) => ipcRenderer.invoke("git:approveChange", { projectName, filePath }),
   rejectGitChange: (projectName: string, filePath: string) => ipcRenderer.invoke("git:rejectChange", { projectName, filePath }),
   getLastCommitTime: (projectName: string) => ipcRenderer.invoke("git:getLastCommitTime", projectName),
-  getDeployStatus: (projectName: string) => ipcRenderer.invoke("github:getDeployStatus", projectName),
+  getDeployStatus: (projectName: string, options?: { force?: boolean }) =>
+    ipcRenderer.invoke("github:getDeployStatus", {
+      projectName,
+      force: Boolean(options?.force),
+    }),
 });
