@@ -138,7 +138,7 @@ export function TrafficPanel({
                   <button
                     type="button"
                     onClick={refreshDeploy}
-                    className="text-xs text-rim-muted hover:text-white"
+                    className="text-lg leading-none text-rim-muted hover:text-white"
                     title="Refresh deploy status"
                   >
                     ↻

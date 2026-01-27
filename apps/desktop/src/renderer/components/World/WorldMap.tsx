@@ -32,7 +32,7 @@ export function WorldMap({ children, biome = 'forest' }: WorldMapProps) {
         />
 
         {/* Grid Content Container */}
-        <div className="relative z-10 max-w-[1600px] mx-auto min-h-full px-8 pb-8 pt-24">
+        <div className="relative max-w-[1600px] mx-auto min-h-full px-8 pb-8 pt-24">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
             {children}
           </div>
